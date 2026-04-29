@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "413715030049",
+    "project_id": "shopidoe-bb07a",
+    "storage_bucket": "shopidoe-bb07a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:413715030049:android:9bc1803e675f27fe510360",
+        "android_client_info": {
+          "package_name": "com.example.shopidoe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRjqm6Y617hMnGlke5u0g7_wqff30ORgc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
