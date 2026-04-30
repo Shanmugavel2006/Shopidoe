@@ -4,9 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/cloudinary_service.dart';
 import '../../models/product_model.dart';
+import '../../services/category_utils.dart';
 
 class AdminAddProductView extends StatefulWidget {
-  const AdminAddProductView({super.key});
+  final Product? product;
+  const AdminAddProductView({super.key, this.product});
 
   @override
   State<AdminAddProductView> createState() => _AdminAddProductViewState();
@@ -16,10 +18,10 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   final Color primaryColor = const Color(0xFFB10044);
   bool _isInStock = true;
   final List<Map<String, dynamic>> _variants = [];
-  
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _tagController = TextEditingController();
 
   File? _pickedImage;
@@ -29,10 +31,27 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   final ImagePicker _picker = ImagePicker();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.product != null) {
+      _nameController.text = widget.product!.name;
+      _priceController.text = widget.product!.price;
+      _categoryController.text = widget.product!.category;
+      _descriptionController.text = widget.product!.description;
+      _uploadedImageUrl = widget.product!.imageUrl;
+      _isInStock = widget.product!.isAvailable;
+    }
+    _categoryController.addListener(() {
+      setState(() {}); // Update icon preview as user types
+    });
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
     _categoryController.dispose();
+    _descriptionController.dispose();
     _tagController.dispose();
     super.dispose();
   }
@@ -71,24 +90,47 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
     setState(() => _isSaving = true);
 
     try {
-      final docRef = FirebaseFirestore.instance.collection('products').doc();
+      final bool isEditing = widget.product != null;
+      final docRef = isEditing 
+          ? FirebaseFirestore.instance.collection('products').doc(widget.product!.id)
+          : FirebaseFirestore.instance.collection('products').doc();
+      
+      // Ensure category exists in categories collection if we want dynamic categories
+      final categoryName = _categoryController.text.trim();
+      final categorySnap = await FirebaseFirestore.instance
+          .collection('categories')
+          .where('name', isEqualTo: categoryName)
+          .get();
+      
+      if (categorySnap.docs.isEmpty) {
+        await FirebaseFirestore.instance.collection('categories').add({
+          'name': categoryName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       final product = Product(
         id: docRef.id,
         name: _nameController.text,
-        category: _categoryController.text,
+        category: categoryName,
         price: _priceController.text,
         status: _isInStock ? 'In Stock' : 'Out of Stock',
         isAvailable: _isInStock,
         imageUrl: _uploadedImageUrl!,
+        description: _descriptionController.text,
       );
 
       await docRef.set(product.toMap());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Product added successfully!')),
+          SnackBar(content: Text(isEditing ? 'Product updated successfully!' : 'Product added successfully!')),
         );
-        _clearForm();
+        if (isEditing) {
+          Navigator.pop(context);
+        } else {
+          _clearForm();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -105,6 +147,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
     _nameController.clear();
     _priceController.clear();
     _categoryController.clear();
+    _descriptionController.clear();
     _tagController.clear();
     setState(() {
       _pickedImage = null;
@@ -204,9 +247,9 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Add New Product',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+          Text(
+            widget.product != null ? 'Edit Product' : 'Add New Product',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
           ),
           const SizedBox(height: 8),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
@@ -215,7 +258,43 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           const SizedBox(height: 32),
           _buildTextField('Price in Rupees', '0.00', isNumber: true, controller: _priceController),
           const SizedBox(height: 32),
-          _buildTextField('Category Selection', 'e.g. Masala, Soap, Grocery', controller: _categoryController),
+          
+          Text(
+            'CATEGORY SELECTION',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blueGrey[800], letterSpacing: 1),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _categoryController,
+            decoration: InputDecoration(
+              hintText: 'e.g. Masala, Soap, Grocery',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+              filled: true,
+              fillColor: Colors.grey[100],
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: CategoryUtils.getColorForCategory(_categoryController.text).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  CategoryUtils.getIconForCategory(_categoryController.text),
+                  color: CategoryUtils.getColorForCategory(_categoryController.text),
+                  size: 20,
+                ),
+              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            'PRODUCT DESCRIPTION',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF8B4513), letterSpacing: 1),
+          ),
+          const SizedBox(height: 12),
+          _buildTextField('', 'Enter detailed description (e.g. Product brown color...)', maxLines: 3, controller: _descriptionController),
           const SizedBox(height: 32),
           
           Text(
@@ -318,7 +397,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(_isSaving ? 'Saving...' : (_isUploading ? 'Uploading...' : 'Add Product'), 
+                  Text(_isSaving ? 'Saving...' : (_isUploading ? 'Uploading...' : (widget.product != null ? 'Update Product' : 'Add Product')), 
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(width: 8),
                   if (!_isUploading && !_isSaving) const Icon(Icons.add, color: Colors.white),

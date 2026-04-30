@@ -1,95 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_page.dart';
+import '../user/login_page.dart';
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+class AdminUserProfileView extends StatefulWidget {
+  final String userName;
+  final String userPhone;
+  final String userAddress;
+  final String userEmail;
+
+  const AdminUserProfileView({
+    super.key,
+    required this.userName,
+    required this.userPhone,
+    required this.userAddress,
+    this.userEmail = 'user@example.com',
+  });
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<AdminUserProfileView> createState() => _AdminUserProfileViewState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  final Color primaryColor = const Color(0xFFB10044);
-  final Color lightBgColor = const Color(0xFFF8F9FA);
-  bool _isDarkMode = false;
-
-  void _showSettingsBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Settings',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Dark Mode',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                Switch(
-                  value: _isDarkMode,
-                  onChanged: (v) {
-                    setState(() => _isDarkMode = v);
-                    Navigator.pop(context);
-                  },
-                  activeColor: primaryColor,
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              'Select Avatar',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 70,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _buildAvatarItem('https://i.pravatar.cc/150?img=1', isSelected: true),
-                  _buildAvatarItem('https://i.pravatar.cc/150?img=2'),
-                  _buildAvatarItem('https://i.pravatar.cc/150?img=3'),
-                  _buildAvatarItem('https://i.pravatar.cc/150?img=4'),
-                  _buildAvatarItem('https://i.pravatar.cc/150?img=5'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatarItem(String url, {bool isSelected = false}) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: isSelected ? primaryColor : Colors.transparent, width: 2),
-      ),
-      child: CircleAvatar(
-        radius: 28,
-        backgroundImage: NetworkImage(url),
-      ),
-    );
-  }
+class _AdminUserProfileViewState extends State<AdminUserProfileView> {
+  final Color primaryColor = const Color(0xFF1B4332);
+  final Color lightBgColor = const Color(0xFFF1F7F5);
 
   @override
   Widget build(BuildContext context) {
@@ -99,13 +32,17 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back, color: primaryColor),
+        ),
         title: Text(
-          'Profile',
+          'User Profile',
           style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
-            onPressed: _showSettingsBottomSheet,
+            onPressed: () {},
             icon: Icon(Icons.settings, color: primaryColor),
           ),
           const SizedBox(width: 8),
@@ -155,9 +92,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'saranraja',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                  Text(
+                    widget.userName,
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -172,7 +109,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Icon(Icons.email_outlined, size: 18, color: Colors.grey[600]),
                         const SizedBox(width: 8),
                         Text(
-                          'shanmugavelraja35@gmail.com',
+                          widget.userEmail,
                           style: TextStyle(color: Colors.grey[600], fontSize: 14),
                         ),
                       ],
@@ -191,7 +128,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Icon(Icons.phone_outlined, size: 18, color: Colors.grey[600]),
                         const SizedBox(width: 8),
                         Text(
-                          '9003892505',
+                          widget.userPhone,
                           style: TextStyle(color: Colors.grey[600], fontSize: 14),
                         ),
                       ],
@@ -362,11 +299,11 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: const Icon(Icons.home, color: Colors.white, size: 20),
                         ),
                         const SizedBox(width: 16),
-                        const Column(
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Home', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            Text('Omalur,Salem-12', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            const Text('Home', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(widget.userAddress, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                           ],
                         ),
                       ],
@@ -378,19 +315,37 @@ class _ProfilePageState extends State<ProfilePage> {
 
             const SizedBox(height: 40),
 
-            // Logout Button
-            TextButton.icon(
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (route) => false,
-                  );
-                }
-              },
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text('Logout', style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold)),
+            // Admin Actions
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[50],
+                      foregroundColor: Colors.red,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Deactivate User', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Message User', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
             ),
             
             const SizedBox(height: 40),

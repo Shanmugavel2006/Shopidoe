@@ -68,7 +68,16 @@ class CartPage extends StatelessWidget {
                               color: Colors.grey[50],
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.image_outlined, color: Colors.grey),
+                            child: item.imageUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      item.imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_outlined, color: Colors.grey),
+                                    ),
+                                  )
+                                : const Icon(Icons.image_outlined, color: Colors.grey),
                           ),
                           const SizedBox(width: 16),
                           Expanded(

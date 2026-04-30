@@ -63,14 +63,14 @@ class _UserHomePageState extends State<UserHomePage> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: primaryColor,
         unselectedItemColor: Colors.grey[400],
-        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), activeIcon: Icon(Icons.grid_view), label: 'Categories'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_outlined), activeIcon: Icon(Icons.shopping_cart), label: 'Cart'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), activeIcon: Icon(Icons.favorite), label: 'Wishlist'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'HOME'),
+          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'CATEGORIES'),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_rounded), label: 'CART'),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'WISHLIST'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'ACCOUNT'),
         ],
       ),
     );
@@ -285,16 +285,6 @@ class _HomeContentState extends State<HomeContent> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product.category.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      letterSpacing: 0.5,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
                     product.name,
                     style: const TextStyle(
                       fontSize: 14,
@@ -304,7 +294,21 @@ class _HomeContentState extends State<HomeContent> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  if (product.description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      product.description.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 9,
+                        letterSpacing: 0.5,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
                   Text(
                     '₹${product.price}',
                     style: TextStyle(

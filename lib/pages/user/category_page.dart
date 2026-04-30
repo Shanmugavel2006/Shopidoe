@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/category_utils.dart';
 import 'category_detail_page.dart';
 
 class CategoryPage extends StatefulWidget {
@@ -13,26 +15,6 @@ class _CategoryPageState extends State<CategoryPage> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-
-  final List<Map<String, dynamic>> _categories = [
-    {'title': 'Cosmetics', 'icon': Icons.auto_awesome, 'color': const Color(0xFFB10044)},
-    {'title': 'Care', 'icon': Icons.shield_outlined, 'color': Colors.blueGrey},
-    {'title': 'Bath', 'icon': Icons.bathtub_outlined, 'color': Colors.blue},
-    {'title': 'Hygiene', 'icon': Icons.clean_hands_outlined, 'color': Colors.teal},
-    {'title': 'Fragrance', 'icon': Icons.air, 'color': Colors.indigo},
-    {'title': 'Cleaning', 'icon': Icons.cleaning_services_outlined, 'color': Colors.brown},
-    {'title': 'Health', 'icon': Icons.add_box_outlined, 'color': Colors.red},
-    {'title': 'Accessories', 'icon': Icons.shopping_bag_outlined, 'color': Colors.orange},
-    {'title': 'Puja', 'icon': Icons.temple_hindu_outlined, 'color': Colors.deepOrange},
-    {'title': 'Herbal', 'icon': Icons.eco_outlined, 'color': Colors.green},
-  ];
-
-  List<Map<String, dynamic>> get _filteredCategories {
-    if (_searchQuery.isEmpty) return _categories;
-    return _categories
-        .where((c) => c['title'].toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-  }
 
   Widget _buildCategoryItem(BuildContext context, String title, IconData icon, Color bgColor) {
     return GestureDetector(
@@ -166,28 +148,47 @@ class _CategoryPageState extends State<CategoryPage> {
                 ],
               ),
               const SizedBox(height: 32),
-              _filteredCategories.isEmpty
-                  ? Center(child: Text('No categories found matching "$_searchQuery"'))
-                  : GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: _filteredCategories.length,
-                      itemBuilder: (context, index) {
-                        final category = _filteredCategories[index];
-                        return _buildCategoryItem(
-                          context,
-                          category['title'],
-                          category['icon'],
-                          category['color'],
-                        );
-                      },
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('categories').snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) return const Center(child: Text('Something went wrong'));
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+                  List<QueryDocumentSnapshot> categories = snapshot.data!.docs;
+
+                  // Apply search filter
+                  if (_searchQuery.isNotEmpty) {
+                    categories = categories.where((doc) => 
+                      doc['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+                    ).toList();
+                  }
+
+                  if (categories.isEmpty) {
+                    return Center(child: Text(_searchQuery.isEmpty ? 'No categories available' : 'No matching categories found'));
+                  }
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.85,
                     ),
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final name = categories[index]['name'];
+                      return _buildCategoryItem(
+                        context,
+                        name,
+                        CategoryUtils.getIconForCategory(name),
+                        CategoryUtils.getColorForCategory(name),
+                      );
+                    },
+                  );
+                },
+              ),
             ],
           ),
         ),

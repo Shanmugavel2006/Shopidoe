@@ -1,63 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDashboardView extends StatelessWidget {
   final Color primaryColor;
-  const AdminDashboardView({super.key, required this.primaryColor});
+  final Function(int) onTabChange;
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color iconColor) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+  const AdminDashboardView({
+    super.key, 
+    required this.primaryColor, 
+    required this.onTabChange
+  });
+
+  Widget _buildStatCard(String title, String streamPath, IconData icon, Color iconColor, int index) {
+    return GestureDetector(
+      onTap: () => onTabChange(index),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
-            child: Icon(icon, color: iconColor, size: 24),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const Spacer(),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection(streamPath).snapshots(),
+              builder: (context, snapshot) {
+                String count = '...';
+                if (snapshot.hasData) {
+                  count = snapshot.data!.docs.length.toString();
+                }
+                return Text(
+                  count,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildActivityItem(String message, String time) {
+  Widget _buildActivityItem(String message, String time, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: 4),
-            width: 10,
-            height: 10,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFB10044),
+              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
+            child: Icon(icon, size: 14, color: color),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -66,12 +84,12 @@ class AdminDashboardView extends StatelessWidget {
               children: [
                 Text(
                   message,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   time,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
                 const SizedBox(height: 16),
                 Divider(color: Colors.grey[100], height: 1),
@@ -112,12 +130,12 @@ class AdminDashboardView extends StatelessWidget {
             crossAxisSpacing: 16,
             childAspectRatio: 1.0,
             children: [
-              _buildStatCard('Total Products', '22', Icons.inventory_2_outlined, Colors.blue),
-              _buildStatCard('Registered Users', '2', Icons.group_outlined, const Color(0xFFB10044)),
-              _buildStatCard('Delivery Register', '0', Icons.local_shipping_outlined, Colors.orange),
-              _buildStatCard('Pending Orders', '2', Icons.assignment_late_outlined, Colors.pink),
-              _buildStatCard('Completed Orders', '11', Icons.check_circle_outline, Colors.teal),
-              _buildStatCard('Payments', '13', Icons.payments_outlined, Colors.purple),
+              _buildStatCard('Total Products', 'products', Icons.inventory_2_outlined, Colors.blue, 3),
+              _buildStatCard('Registered Users', 'users', Icons.group_outlined, primaryColor, 4),
+              _buildStatCard('Pending Orders', 'orders', Icons.assignment_late_outlined, Colors.pink, 1),
+              _buildStatCard('Total Payments', 'payments', Icons.payments_outlined, Colors.purple, 2),
+              _buildStatCard('Categories', 'categories', Icons.category_outlined, Colors.teal, 3),
+              _buildStatCard('Order History', 'history', Icons.history, Colors.orange, 7),
             ],
           ),
           const SizedBox(height: 40),
@@ -134,11 +152,53 @@ class AdminDashboardView extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _buildActivityItem('New order received from saranraja', '38 mins ago'),
-                _buildActivityItem('New user "Varshini" registered', '22 hours ago'),
-                _buildActivityItem('New order received from saranraja', '23 hours ago'),
-                _buildActivityItem('New order received from saranraja', '23 hours ago'),
-                _buildActivityItem('New user "saranraja" registered', '1 days ago'),
+                // Real Activity Logic: Combine multiple streams
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('products').orderBy('createdAt', descending: true).limit(2).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+                    return Column(
+                      children: snapshot.data!.docs.map((doc) {
+                        return _buildActivityItem(
+                          'New product "${doc['name']}" added',
+                          'Recently',
+                          Icons.add_box_outlined,
+                          Colors.blue,
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').limit(2).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+                    return Column(
+                      children: snapshot.data!.docs.map((doc) {
+                        final name = doc['name'] ?? 'Unknown User';
+                        return _buildActivityItem(
+                          'New user "$name" registered',
+                          'Recently',
+                          Icons.person_add_alt_outlined,
+                          primaryColor,
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('orders').orderBy('createdAt', descending: true).limit(1).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox();
+                    final doc = snapshot.data!.docs.first;
+                    return _buildActivityItem(
+                      'New order #${doc.id.substring(0, 5)} received',
+                      'Recently',
+                      Icons.receipt_long_outlined,
+                      Colors.green,
+                    );
+                  },
+                ),
               ],
             ),
           ),

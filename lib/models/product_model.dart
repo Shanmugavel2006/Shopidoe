@@ -6,6 +6,7 @@ class Product {
   final String status;
   final bool isAvailable;
   final String imageUrl;
+  final String description;
 
   Product({
     required this.id,
@@ -15,6 +16,7 @@ class Product {
     required this.status,
     required this.isAvailable,
     required this.imageUrl,
+    this.description = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class Product {
       'status': status,
       'isAvailable': isAvailable,
       'imageUrl': imageUrl,
+      'description': description,
     };
   }
 
@@ -38,6 +41,7 @@ class Product {
       status: map['status'] ?? '',
       isAvailable: map['isAvailable'] ?? true,
       imageUrl: map['imageUrl'] ?? '',
+      description: map['description'] ?? '',
     );
   }
 }

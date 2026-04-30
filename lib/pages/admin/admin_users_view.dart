@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'admin_user_profile_view.dart';
 
 class AdminUsersView extends StatelessWidget {
   const AdminUsersView({super.key});
 
-  Widget _buildUserCard(String name, String phone, String address, String initial) {
+  Widget _buildUserCard(BuildContext context, String name, String phone, String address, String email, String initial) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -44,7 +45,22 @@ class AdminUsersView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton.icon(onPressed: () {}, icon: const Icon(Icons.do_not_disturb_on_outlined, color: Colors.red, size: 18), label: const Text('Deactivate', style: TextStyle(color: Colors.red))),
-              TextButton.icon(onPressed: () {}, icon: const Icon(Icons.info_outline, color: Color(0xFFB10044), size: 18), label: const Text('Details', style: TextStyle(color: Color(0xFFB10044)))),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AdminUserProfileView(
+                        userName: name,
+                        userPhone: phone,
+                        userAddress: address,
+                        userEmail: email,
+                      ),
+                    ),
+                  );
+                }, 
+                icon: const Icon(Icons.info_outline, color: Color(0xFFB10044), size: 18), 
+                label: const Text('Details', style: TextStyle(color: Color(0xFFB10044)))),
             ],
           ),
         ],
@@ -64,8 +80,8 @@ class AdminUsersView extends StatelessWidget {
         const SizedBox(height: 8),
         Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFB10044), borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 32),
-        _buildUserCard('saranraja', '9566609177', 'Omalur,Salem-12', 'S'),
-        _buildUserCard('Varshini', '9489858669', 'vkl', 'V'),
+        _buildUserCard(context, 'saranraja', '9003892505', 'Omalur,Salem-12', 'shanmugavelraja35@gmail.com', 'S'),
+        _buildUserCard(context, 'Varshini', '9489858669', 'vkl', 'varshini@example.com', 'V'),
       ],
     );
   }

@@ -161,7 +161,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          AdminDashboardView(primaryColor: primaryColor),
+          AdminDashboardView(
+            primaryColor: primaryColor,
+            onTabChange: (index) => setState(() => _selectedIndex = index),
+          ),
           AdminOrdersView(),
           AdminPaymentsView(),
           AdminInventoryView(),
