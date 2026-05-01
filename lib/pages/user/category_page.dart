@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/category_utils.dart';
 import 'category_detail_page.dart';
 
@@ -15,18 +16,51 @@ class _CategoryPageState extends State<CategoryPage> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => debugPrint('onStatus: $val'),
+        onError: (val) => debugPrint('onError: $val'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _searchController.text = val.recognizedWords;
+            _searchQuery = val.recognizedWords;
+          }),
+        );
+      } else {
+        setState(() => _isListening = false);
+        _speech.stop();
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
 
   Widget _buildCategoryItem(BuildContext context, String title, IconData icon, Color bgColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () => widget.onCategorySelected(title),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[100]!),
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -38,19 +72,23 @@ class _CategoryPageState extends State<CategoryPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: bgColor.withOpacity(0.1),
+                color: bgColor.withOpacity(isDark ? 0.2 : 0.1),
                 shape: BoxShape.circle,
+                border: Border.all(color: bgColor.withOpacity(0.3), width: 1),
               ),
               child: Icon(icon, color: bgColor, size: 28),
             ),
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2D2D2D),
+                color: isDark ? Colors.white : const Color(0xFF2D2D2D),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -60,10 +98,11 @@ class _CategoryPageState extends State<CategoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
         elevation: 0,
         titleSpacing: 0,
         title: Row(
@@ -82,7 +121,10 @@ class _CategoryPageState extends State<CategoryPage> {
           ],
         ),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.shopping_bag_outlined, color: Colors.black87)),
+          IconButton(
+            onPressed: () {}, 
+            icon: Icon(Icons.shopping_bag_outlined, color: isDark ? Colors.white : Colors.black87)
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -92,9 +134,13 @@ class _CategoryPageState extends State<CategoryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Categories',
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                style: TextStyle(
+                  fontSize: 32, 
+                  fontWeight: FontWeight.bold, 
+                  color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                ),
               ),
               const SizedBox(height: 20),
               // Search Bar
@@ -102,18 +148,22 @@ class _CategoryPageState extends State<CategoryPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 height: 50,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
+                  color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[100]!),
+                  border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
                 ),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (value) => setState(() => _searchQuery = value),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Search categories...',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                    suffixIcon: Icon(Icons.mic_none, color: primaryColor),
+                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+                    suffixIcon: IconButton(
+                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                      onPressed: _listen,
+                    ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 15),
                   ),
@@ -134,14 +184,20 @@ class _CategoryPageState extends State<CategoryPage> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.filter_list, size: 18, color: Colors.black87),
-                        SizedBox(width: 8),
-                        Text('Filter', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Icon(Icons.filter_list, size: 18, color: isDark ? Colors.white : Colors.black87),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Filter', 
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87
+                          )
+                        ),
                       ],
                     ),
                   ),
@@ -164,7 +220,12 @@ class _CategoryPageState extends State<CategoryPage> {
                   }
 
                   if (categories.isEmpty) {
-                    return Center(child: Text(_searchQuery.isEmpty ? 'No categories available' : 'No matching categories found'));
+                    return Center(
+                      child: Text(
+                        _searchQuery.isEmpty ? 'No categories available' : 'No matching categories found',
+                        style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                      )
+                    );
                   }
 
                   return GridView.builder(

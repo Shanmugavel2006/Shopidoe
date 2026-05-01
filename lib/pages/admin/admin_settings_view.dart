@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import '../user/login_page.dart';
+import '../../main.dart';
+import '../../services/cloudinary_service.dart';
 
 class AdminSettingsView extends StatefulWidget {
   const AdminSettingsView({super.key});
@@ -11,19 +16,70 @@ class AdminSettingsView extends StatefulWidget {
 
 class _AdminSettingsViewState extends State<AdminSettingsView> {
   final Color primaryColor = const Color(0xFFB10044);
-  bool _isDarkMode = false;
 
-  Widget _buildAvatar(String url, {bool isSelected = false}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: isSelected ? primaryColor : Colors.transparent, width: 2),
-      ),
-      child: CircleAvatar(
-        radius: 25,
-        backgroundImage: NetworkImage(url),
+  Future<void> _pickAndUploadAdminImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (pickedFile != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Uploading image...')),
+        );
+      }
+
+      final url = await CloudinaryService.uploadImage(File(pickedFile.path));
+      if (url != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+            'profileImageUrl': url,
+          }, SetOptions(merge: true));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile picture updated successfully!')),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to upload image.')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Profile Options',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Icon(Icons.upload, color: primaryColor),
+              title: const Text('Upload New Image', style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadAdminImage();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -33,7 +89,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
       ),
@@ -52,7 +108,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
+                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                 Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
               ],
             ),
@@ -65,14 +121,15 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Store Settings',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
           ),
           const SizedBox(height: 8),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
@@ -80,40 +137,61 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
           
           const Text('Profile Customization', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
-            ),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=12'),
-                  backgroundColor: primaryColor.withOpacity(0.1),
-                ),
-                const SizedBox(height: 16),
-                const Text('Select Default Avatar', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-                const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          if (user != null)
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+              builder: (context, snapshot) {
+                final data = snapshot.data?.data() as Map<String, dynamic>?;
+                final imageUrl = data?['profileImageUrl'] ?? 'https://i.pravatar.cc/150?img=12';
+                
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
+                  ),
+                  child: Column(
                     children: [
-                      _buildAvatar('https://i.pravatar.cc/150?img=12', isSelected: true),
-                      _buildAvatar('https://i.pravatar.cc/150?img=13'),
-                      _buildAvatar('https://i.pravatar.cc/150?img=14'),
-                      _buildAvatar('https://i.pravatar.cc/150?img=15'),
-                      _buildAvatar('https://i.pravatar.cc/150?img=16'),
+                      GestureDetector(
+                        onTap: _showImageOptions,
+                        child: Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF66BB6A), width: 2),
+                              ),
+                              child: CircleAvatar(
+                                radius: 50,
+                                backgroundImage: NetworkImage(imageUrl),
+                                backgroundColor: primaryColor.withOpacity(0.1),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF1B4332),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Tap to change admin photo', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
                     ],
                   ),
-                ),
-              ],
+                );
+              }
             ),
-          ),
           
           const SizedBox(height: 40),
           const Text('App Appearance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -121,7 +199,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
             ),
@@ -135,10 +213,17 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                 const SizedBox(width: 16),
                 const Text('Dark Mode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                Switch(
-                  value: _isDarkMode,
-                  onChanged: (v) => setState(() => _isDarkMode = v),
-                  activeColor: primaryColor,
+                ValueListenableBuilder<ThemeMode>(
+                  valueListenable: themeNotifier,
+                  builder: (_, mode, __) {
+                    return Switch(
+                      value: mode == ThemeMode.dark,
+                      onChanged: (v) {
+                        themeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
+                      },
+                      activeColor: primaryColor,
+                    );
+                  },
                 ),
               ],
             ),

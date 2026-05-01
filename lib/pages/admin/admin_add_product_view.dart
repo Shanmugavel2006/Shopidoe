@@ -40,6 +40,9 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
       _descriptionController.text = widget.product!.description;
       _uploadedImageUrl = widget.product!.imageUrl;
       _isInStock = widget.product!.isAvailable;
+      if (widget.product!.variants.isNotEmpty) {
+        _variants.addAll(widget.product!.variants);
+      }
     }
     _categoryController.addListener(() {
       setState(() {}); // Update icon preview as user types
@@ -118,6 +121,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
         isAvailable: _isInStock,
         imageUrl: _uploadedImageUrl!,
         description: _descriptionController.text,
+        variants: List<Map<String, dynamic>>.from(_variants),
       );
 
       await docRef.set(product.toMap());
@@ -158,23 +162,93 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   }
 
   void _showAddVariantDialog() {
+    final variantNameController = TextEditingController();
+    final variantPriceController = TextEditingController();
+    File? variantImage;
+    String? variantImageUrl;
+    bool variantInStock = true;
+    bool isUploadingVariant = false;
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          bool variantInStock = true;
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: const Text('Add Product Variant', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text('Add Product Variant', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800])),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTextField('Variant Name (e.g. Red, 500g)', 'e.g. Small, Large'),
+                  // Variant Name
+                  TextField(
+                    controller: variantNameController,
+                    decoration: InputDecoration(
+                      labelText: 'Variant Name',
+                      hintText: 'e.g. 500g, Red, Large',
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  _buildTextField('Price', '0.00', isNumber: true),
-                  const SizedBox(height: 24),
+                  // Variant Price
+                  TextField(
+                    controller: variantPriceController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Price (₹)',
+                      hintText: '0.00',
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Variant Image
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await _picker.pickImage(source: ImageSource.gallery);
+                      if (picked != null) {
+                        setDialogState(() {
+                          variantImage = File(picked.path);
+                          isUploadingVariant = true;
+                        });
+                        final url = await CloudinaryService.uploadImage(variantImage!);
+                        setDialogState(() {
+                          variantImageUrl = url;
+                          isUploadingVariant = false;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: isUploadingVariant
+                          ? Center(child: CircularProgressIndicator(color: primaryColor))
+                          : variantImage != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(variantImage!, fit: BoxFit.cover),
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_photo_alternate_outlined, color: Colors.grey[400], size: 28),
+                                    const SizedBox(height: 4),
+                                    Text('Tap to add variant image', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                  ],
+                                ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Stock toggle
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -196,8 +270,19 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
               ),
               ElevatedButton(
                 onPressed: () {
+                  if (variantNameController.text.isEmpty || variantPriceController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter variant name and price')),
+                    );
+                    return;
+                  }
                   setState(() {
-                    _variants.add({'name': 'New Variant', 'price': '0.00'});
+                    _variants.add({
+                      'name': variantNameController.text.trim(),
+                      'price': variantPriceController.text.trim(),
+                      'imageUrl': variantImageUrl ?? '',
+                      'isAvailable': variantInStock,
+                    });
                   });
                   Navigator.pop(context);
                 },
@@ -215,23 +300,27 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   }
 
   Widget _buildTextField(String label, String hint, {bool isNumber = false, int maxLines = 1, TextEditingController? controller}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blueGrey[800], letterSpacing: 1),
-        ),
-        const SizedBox(height: 12),
+        if (label.isNotEmpty) ...[
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : Colors.blueGrey[800], letterSpacing: 1),
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           controller: controller,
           keyboardType: isNumber ? TextInputType.number : TextInputType.text,
           maxLines: maxLines,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+            hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
             filled: true,
-            fillColor: Colors.grey[100],
+            fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.all(16),
           ),
@@ -242,6 +331,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -249,7 +339,11 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
         children: [
           Text(
             widget.product != null ? 'Edit Product' : 'Add New Product',
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+            style: TextStyle(
+              fontSize: 28, 
+              fontWeight: FontWeight.bold, 
+              color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+            ),
           ),
           const SizedBox(height: 8),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
@@ -261,16 +355,17 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           
           Text(
             'CATEGORY SELECTION',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blueGrey[800], letterSpacing: 1),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : Colors.blueGrey[800], letterSpacing: 1),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _categoryController,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               hintText: 'e.g. Masala, Soap, Grocery',
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
               filled: true,
-              fillColor: Colors.grey[100],
+              fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
               prefixIcon: Container(
                 margin: const EdgeInsets.all(12),
                 padding: const EdgeInsets.all(4),
@@ -291,7 +386,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           const SizedBox(height: 32),
           Text(
             'PRODUCT DESCRIPTION',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF8B4513), letterSpacing: 1),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : const Color(0xFF8B4513), letterSpacing: 1),
           ),
           const SizedBox(height: 12),
           _buildTextField('', 'Enter detailed description (e.g. Product brown color...)', maxLines: 3, controller: _descriptionController),
@@ -299,7 +394,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           
           Text(
             'PRODUCT IMAGE',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blueGrey[800], letterSpacing: 1),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : Colors.blueGrey[800], letterSpacing: 1),
           ),
           const SizedBox(height: 12),
           GestureDetector(
@@ -308,9 +403,9 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
               width: double.infinity,
               height: 200,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!, width: 1, style: BorderStyle.solid),
+                border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!, width: 1, style: BorderStyle.solid),
               ),
               child: _isUploading
                   ? Center(child: CircularProgressIndicator(color: primaryColor))
@@ -322,9 +417,9 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[400]),
+                            Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey[500]),
                             const SizedBox(height: 8),
-                            Text('Click to upload image', style: TextStyle(color: Colors.grey[400])),
+                            Text('Click to upload image', style: TextStyle(color: Colors.grey[500])),
                           ],
                         ),
             ),
@@ -340,9 +435,9 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Available in Stock:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1A1A1A)),
               ),
               Switch(
                 value: _isInStock,
@@ -354,31 +449,67 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
           const SizedBox(height: 40),
           Text(
             'PRODUCT VARIANTS (OPTIONAL)',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.blueGrey[800], letterSpacing: 1),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : Colors.blueGrey[800], letterSpacing: 1),
           ),
           const SizedBox(height: 16),
           if (_variants.isNotEmpty) ...[
-            ..._variants.map((v) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(v['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  IconButton(onPressed: () {}, icon: const Icon(Icons.close, size: 18, color: Colors.red)),
-                ],
-              ),
-            )),
-            const SizedBox(height: 16),
+            ..._variants.asMap().entries.map((entry) {
+              final i = entry.key;
+              final v = entry.value;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: primaryColor.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    // Thumbnail
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        color: isDark ? Colors.grey[900] : Colors.grey[100],
+                        child: (v['imageUrl'] != null && v['imageUrl'].isNotEmpty)
+                            ? Image.network(v['imageUrl'], fit: BoxFit.cover)
+                            : Icon(Icons.image_outlined, color: Colors.grey[500]),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            v['name'] ?? '', 
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black87)
+                          ),
+                          Text('₹ ${v['price'] ?? ''}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600)),
+                          Text((v['isAvailable'] == true) ? 'In Stock' : 'Out of Stock',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => _variants.removeAt(i)),
+                      icon: const Icon(Icons.close, size: 18, color: Colors.red),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
           ],
           OutlinedButton.icon(
             onPressed: _showAddVariantDialog,
             icon: const Icon(Icons.add_circle_outline, size: 20),
             label: const Text('Add Multiple Options / Variants'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1A1A1A),
-              side: const BorderSide(color: Color(0xFF1A1A1A)),
+              foregroundColor: primaryColor,
+              side: BorderSide(color: primaryColor),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               minimumSize: const Size(double.infinity, 56),
             ),

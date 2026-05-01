@@ -4,15 +4,16 @@ class AdminPaymentsView extends StatelessWidget {
   const AdminPaymentsView({super.key});
 
   void _showTransactionDetails(BuildContext context, String id) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -23,7 +24,7 @@ class AdminPaymentsView extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: isDark ? Colors.grey[800] : Colors.grey[300],
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -32,9 +33,13 @@ class AdminPaymentsView extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Transaction Details',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 24, 
+                    fontWeight: FontWeight.bold, 
+                    color: isDark ? Colors.white : Colors.black87
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -50,20 +55,24 @@ class AdminPaymentsView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 40),
-            _buildDetailItem(Icons.phone_outlined, 'Phone', '9003892505'),
-            _buildDetailItem(Icons.credit_card_outlined, 'Payment Method', 'Cash on Delivery'),
-            _buildDetailItem(Icons.account_balance_wallet_outlined, 'Total Amount', '₹76.00'),
-            _buildDetailItem(Icons.info_outline, 'Status', 'CONFIRMED'),
-            _buildDetailItem(Icons.calendar_today_outlined, 'Order Date', '2026-04-28 19:29:44.275'),
+            _buildDetailItem(context, Icons.phone_outlined, 'Phone', '9003892505'),
+            _buildDetailItem(context, Icons.credit_card_outlined, 'Payment Method', 'Cash on Delivery'),
+            _buildDetailItem(context, Icons.account_balance_wallet_outlined, 'Total Amount', '₹76.00'),
+            _buildDetailItem(context, Icons.info_outline, 'Status', 'CONFIRMED'),
+            _buildDetailItem(context, Icons.calendar_today_outlined, 'Order Date', '2026-04-28 19:29:44.275'),
             const SizedBox(height: 40),
-            const Text(
+            Text(
               'Shipping Address',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18, 
+                fontWeight: FontWeight.bold, 
+                color: isDark ? Colors.white : Colors.black87
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               'Omalur,Salem-12, salem - 636305',
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
             ),
             const Spacer(),
             SizedBox(
@@ -84,7 +93,8 @@ class AdminPaymentsView extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailItem(IconData icon, String label, String value) {
+  Widget _buildDetailItem(BuildContext context, IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0),
       child: Row(
@@ -94,9 +104,16 @@ class AdminPaymentsView extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+              Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
               const SizedBox(height: 4),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                value, 
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, 
+                  fontSize: 16, 
+                  color: isDark ? Colors.white : Colors.black87
+                )
+              ),
             ],
           ),
         ],
@@ -113,11 +130,12 @@ class AdminPaymentsView extends StatelessWidget {
     required IconData icon,
     required String id,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
       ),
@@ -127,7 +145,10 @@ class AdminPaymentsView extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.grey[50], shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.grey[50], 
+                  shape: BoxShape.circle
+                ),
                 child: Icon(icon, color: const Color(0xFFB10044)),
               ),
               const SizedBox(width: 16),
@@ -135,15 +156,29 @@ class AdminPaymentsView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text(date, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                    Text(
+                      name, 
+                      style: TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold, 
+                        color: isDark ? Colors.white : Colors.black87
+                      )
+                    ),
+                    Text(date, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('₹$amount', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
+                  Text(
+                    '₹$amount', 
+                    style: TextStyle(
+                      fontSize: 18, 
+                      fontWeight: FontWeight.w900, 
+                      color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                    )
+                  ),
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -155,7 +190,7 @@ class AdminPaymentsView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const Divider(height: 1),
+          Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -164,7 +199,7 @@ class AdminPaymentsView extends StatelessWidget {
                 children: [
                   Icon(Icons.credit_card, size: 16, color: Colors.grey[400]),
                   const SizedBox(width: 8),
-                  Text(method, style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+                  Text(method, style: TextStyle(color: Colors.grey[500], fontSize: 14)),
                 ],
               ),
               GestureDetector(
@@ -183,14 +218,19 @@ class AdminPaymentsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
           child: Text(
             'Payment Transactions',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+            style: TextStyle(
+              fontSize: 28, 
+              fontWeight: FontWeight.bold, 
+              color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -204,12 +244,18 @@ class AdminPaymentsView extends StatelessWidget {
           child: Container(
             height: 50,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white, 
+              borderRadius: BorderRadius.circular(12)
+            ),
             child: Row(
               children: [
                 Icon(Icons.search, color: Colors.grey[400]),
                 const SizedBox(width: 12),
-                Text('Search by customer or paymen...', style: TextStyle(color: Colors.grey[400])),
+                Text(
+                  'Search by customer or payment...', 
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14)
+                ),
               ],
             ),
           ),

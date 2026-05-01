@@ -68,6 +68,7 @@ class _SignupPageState extends State<SignupPage> {
         'mobile': mobile,
         'address': address,
         'role': 'user', // Default role
+        'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
 

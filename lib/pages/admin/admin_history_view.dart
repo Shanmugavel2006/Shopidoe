@@ -5,7 +5,8 @@ class AdminHistoryView extends StatelessWidget {
 
   final Color primaryColor = const Color(0xFFB10044);
 
-  Widget _buildHistoryItem(String message, String time) {
+  Widget _buildHistoryItem(BuildContext context, String message, String time) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Row(
@@ -27,12 +28,16 @@ class AdminHistoryView extends StatelessWidget {
               children: [
                 Text(
                   message,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF2D2D2D)),
+                  style: TextStyle(
+                    fontSize: 16, 
+                    fontWeight: FontWeight.w600, 
+                    color: isDark ? Colors.white : const Color(0xFF2D2D2D)
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   time,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[500] : Colors.grey[400]),
                 ),
               ],
             ),
@@ -44,6 +49,7 @@ class AdminHistoryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -51,9 +57,13 @@ class AdminHistoryView extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
           child: Row(
             children: [
-              const Text(
+              Text(
                 'Complete History',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                style: TextStyle(
+                  fontSize: 28, 
+                  fontWeight: FontWeight.bold, 
+                  color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                ),
               ),
             ],
           ),
@@ -69,28 +79,28 @@ class AdminHistoryView extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 24),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
             ),
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildHistoryItem('New order received from saranraja', '29/4/2026 18:20'),
-                const Divider(height: 1),
-                _buildHistoryItem('New user "Varshini" registered', '28/4/2026 20:15'),
-                const Divider(height: 1),
-                _buildHistoryItem('New order received from saranraja', '28/4/2026 19:29'),
-                const Divider(height: 1),
-                _buildHistoryItem('New order received from saranraja', '28/4/2026 19:11'),
-                const Divider(height: 1),
-                _buildHistoryItem('New user "saranraja" registered', '28/4/2026 15:21'),
-                const Divider(height: 1),
-                _buildHistoryItem('New order received from saran', '27/4/2026 21:48'),
-                const Divider(height: 1),
-                _buildHistoryItem('New order received from saran', '27/4/2026 15:32'),
-                const Divider(height: 1),
-                _buildHistoryItem('New order received from saran', '27/4/2026 15:21'),
+                _buildHistoryItem(context, 'New order received from saranraja', '29/4/2026 18:20'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New user "Varshini" registered', '28/4/2026 20:15'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New order received from saranraja', '28/4/2026 19:29'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New order received from saranraja', '28/4/2026 19:11'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New user "saranraja" registered', '28/4/2026 15:21'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New order received from saran', '27/4/2026 21:48'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New order received from saran', '27/4/2026 15:32'),
+                Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
+                _buildHistoryItem(context, 'New order received from saran', '27/4/2026 15:21'),
               ],
             ),
           ),

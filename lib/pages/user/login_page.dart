@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../admin/admin_login_page.dart';
 import 'signup_page.dart';
 import 'user_home_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   final bool showAccountDeletedPopup;
@@ -63,6 +64,7 @@ class _LoginPageState extends State<LoginPage> {
     
     try {
       String email = input;
+      DocumentSnapshot? userDocSnapshot;
       
       // If it's a mobile number (doesn't contain @), find the email in Firestore
       if (!input.contains('@')) {
@@ -75,14 +77,27 @@ class _LoginPageState extends State<LoginPage> {
         if (userDoc.docs.isEmpty) {
           throw FirebaseAuthException(code: 'user-not-found', message: 'No user found with this mobile number.');
         }
-        email = userDoc.docs.first.get('email');
+        userDocSnapshot = userDoc.docs.first;
+        email = userDocSnapshot.get('email');
       }
 
       // Sign in with email and password
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      if (userDocSnapshot == null) {
+        userDocSnapshot = await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).get();
+      }
+
+      if (userDocSnapshot.exists) {
+        final userData = userDocSnapshot.data() as Map<String, dynamic>;
+        if (userData['isActive'] == false) {
+          await FirebaseAuth.instance.signOut();
+          throw FirebaseAuthException(code: 'account-deactivated', message: 'Your account has been deactivated. Try to contact admin.');
+        }
+      }
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -224,7 +239,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                          );
+                        },
                         child: Text(
                           'Forgot?',
                           style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),

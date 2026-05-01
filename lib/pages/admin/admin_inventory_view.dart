@@ -98,12 +98,187 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
     );
   }
 
+  void _showVariantsDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.layers_outlined, color: primaryColor, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Variants for ${product.name}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (product.variants.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Text('No variants added for this product.', style: TextStyle(color: Colors.grey[500])),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 350),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: product.variants.length,
+                    itemBuilder: (context, index) {
+                      final v = product.variants[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: primaryColor.withOpacity(0.2)),
+                          boxShadow: [
+                            BoxShadow(color: primaryColor.withOpacity(0.04), blurRadius: 8),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            // Variant Image
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                color: Colors.grey[100],
+                                child: (v['imageUrl'] != null && (v['imageUrl'] as String).isNotEmpty)
+                                    ? Image.network(v['imageUrl'], fit: BoxFit.cover)
+                                    : Icon(Icons.image_outlined, color: Colors.grey[400]),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(v['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                  Text('₹ ${v['price'] ?? ''}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.w800, fontSize: 15)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Switch(
+                                        value: v['isAvailable'] == true,
+                                        onChanged: (val) async {
+                                          setDialogState(() {
+                                            product.variants[index]['isAvailable'] = val;
+                                          });
+                                          await FirebaseFirestore.instance.collection('products').doc(product.id).update({'variants': product.variants});
+                                        },
+                                        activeColor: primaryColor,
+                                      ),
+                                      Text(
+                                        (v['isAvailable'] == true) ? 'AVAILABLE' : 'OUT OF STOCK',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: Icon(Icons.edit_outlined, size: 18, color: primaryColor),
+                                  onPressed: () {
+                                    Navigator.pop(context); // Close dialog
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => Scaffold(
+                                          appBar: AppBar(
+                                            backgroundColor: Colors.white,
+                                            elevation: 0,
+                                            iconTheme: IconThemeData(color: primaryColor),
+                                            title: Text('Edit Product', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                                          ),
+                                          body: AdminAddProductView(product: product),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Delete Variant?'),
+                                        content: const Text('Are you sure you want to delete this variant?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      setDialogState(() {
+                                        product.variants.removeAt(index);
+                                      });
+                                      await FirebaseFirestore.instance.collection('products').doc(product.id).update({'variants': product.variants});
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+  }
+
   Widget _buildInventoryItem(Product product) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
       ),
@@ -112,7 +287,10 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
           Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[900] : Colors.grey[100], 
+              borderRadius: BorderRadius.circular(12)
+            ),
             child: product.imageUrl.isNotEmpty 
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -128,24 +306,35 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(8)),
-                      child: Text(product.category.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                          product.category.toUpperCase(), 
+                          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           onPressed: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => Scaffold(
+                                  backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
                                   appBar: AppBar(
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                                     elevation: 0,
                                     iconTheme: IconThemeData(color: primaryColor),
-                                    title: Text('Edit Product', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                                    title: Text('Edit Product', style: TextStyle(color: isDark ? Colors.white : Colors.grey[800], fontWeight: FontWeight.bold)),
                                   ),
                                   body: AdminAddProductView(product: product),
                                 ),
@@ -154,29 +343,64 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                           },
                           icon: Icon(Icons.edit_outlined, size: 18, color: primaryColor),
                         ),
+                        const SizedBox(width: 12),
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           onPressed: () => _deleteProduct(product.id),
                           icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
                         ),
-                        Text('#${product.id.substring(0, 5)}', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                        const SizedBox(width: 8),
+                        Text('#${product.id.substring(0, 5)}', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  product.name, 
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 16,
+                    color: isDark ? Colors.white : Colors.black87
+                  )
+                ),
                 if (product.description.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     product.description, 
                     maxLines: 1, 
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic),
                   ),
                 ],
                 const SizedBox(height: 4),
                 Text('₹ ${product.price}', style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
                 const SizedBox(height: 8),
+                if (product.variants.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => _showVariantsDialog(product),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.layers_outlined, color: primaryColor, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${product.variants.length} Variants – Tap to View',
+                            style: TextStyle(fontSize: 11, color: primaryColor, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -189,7 +413,10 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                           }, 
                           activeColor: primaryColor,
                         ),
-                        Text('AVAILABLE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                        Text(
+                          'AVAILABLE', 
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[600])
+                        ),
                       ],
                     ),
                   ],
@@ -204,6 +431,7 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -212,9 +440,13 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Inventory Control',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                style: TextStyle(
+                  fontSize: 28, 
+                  fontWeight: FontWeight.bold, 
+                  color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                ),
               ),
               IconButton(
                 onPressed: _showManageCategoriesDialog,
@@ -241,16 +473,17 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                   height: 50,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (v) => setState(() => _searchQuery = v),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     decoration: InputDecoration(
                       icon: Icon(Icons.search, color: Colors.grey[400]),
                       hintText: 'Search products, categories...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: TextStyle(color: Colors.grey[500]),
                       border: InputBorder.none,
                     ),
                   ),
@@ -274,7 +507,8 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                 return Product.fromMap(data);
               }).toList();
 
-              // Apply search
+              products.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
               if (_searchQuery.isNotEmpty) {
                 products = products.where((p) => 
                   p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
@@ -283,7 +517,12 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
               }
 
               if (products.isEmpty) {
-                return Center(child: Text(_searchQuery.isEmpty ? 'No products in inventory' : 'No matching products found'));
+                return Center(
+                  child: Text(
+                    _searchQuery.isEmpty ? 'No products in inventory' : 'No matching products found',
+                    style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                  )
+                );
               }
 
               return ListView.builder(

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminDashboardView extends StatelessWidget {
   final Color primaryColor;
-  final Function(int) onTabChange;
+  final Function(int, {int? subTab}) onTabChange;
 
   const AdminDashboardView({
     super.key, 
@@ -11,13 +11,14 @@ class AdminDashboardView extends StatelessWidget {
     required this.onTabChange
   });
 
-  Widget _buildStatCard(String title, String streamPath, IconData icon, Color iconColor, int index) {
+  Widget _buildStatCard(BuildContext context, String title, Stream<QuerySnapshot> stream, IconData icon, Color iconColor, int tabIndex, {int? subTab}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: () => onTabChange(index),
+      onTap: () => onTabChange(tabIndex, subTab: subTab),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -40,15 +41,21 @@ class AdminDashboardView extends StatelessWidget {
             ),
             const Spacer(),
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection(streamPath).snapshots(),
+              stream: stream,
               builder: (context, snapshot) {
-                String count = '...';
-                if (snapshot.hasData) {
+                String count = '0';
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  count = '...';
+                } else if (snapshot.hasData) {
                   count = snapshot.data!.docs.length.toString();
                 }
                 return Text(
                   count,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(
+                    fontSize: 24, 
+                    fontWeight: FontWeight.bold, 
+                    color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                  ),
                 );
               },
             ),
@@ -63,7 +70,8 @@ class AdminDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildActivityItem(String message, String time, IconData icon, Color color) {
+  Widget _buildActivityItem(BuildContext context, String message, String time, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Row(
@@ -84,7 +92,11 @@ class AdminDashboardView extends StatelessWidget {
               children: [
                 Text(
                   message,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
+                  style: TextStyle(
+                    fontSize: 14, 
+                    fontWeight: FontWeight.bold, 
+                    color: isDark ? Colors.grey[300] : const Color(0xFF2D2D2D)
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -92,7 +104,7 @@ class AdminDashboardView extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Colors.grey[400]),
                 ),
                 const SizedBox(height: 16),
-                Divider(color: Colors.grey[100], height: 1),
+                Divider(color: isDark ? Colors.grey[800] : Colors.grey[100], height: 1),
               ],
             ),
           ),
@@ -103,14 +115,19 @@ class AdminDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Store Statistics',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+            style: TextStyle(
+              fontSize: 24, 
+              fontWeight: FontWeight.bold, 
+              color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+            ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -130,29 +147,62 @@ class AdminDashboardView extends StatelessWidget {
             crossAxisSpacing: 16,
             childAspectRatio: 1.0,
             children: [
-              _buildStatCard('Total Products', 'products', Icons.inventory_2_outlined, Colors.blue, 3),
-              _buildStatCard('Registered Users', 'users', Icons.group_outlined, primaryColor, 4),
-              _buildStatCard('Pending Orders', 'orders', Icons.assignment_late_outlined, Colors.pink, 1),
-              _buildStatCard('Total Payments', 'payments', Icons.payments_outlined, Colors.purple, 2),
-              _buildStatCard('Categories', 'categories', Icons.category_outlined, Colors.teal, 3),
-              _buildStatCard('Order History', 'history', Icons.history, Colors.orange, 7),
+              _buildStatCard(
+                context,
+                'Total Products', 
+                FirebaseFirestore.instance.collection('products').snapshots(), 
+                Icons.inventory_2_outlined, Colors.blue, 3
+              ),
+              _buildStatCard(
+                context,
+                'Registered Users', 
+                FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'user').snapshots(), 
+                Icons.group_outlined, Colors.green, 4
+              ),
+              _buildStatCard(
+                context,
+                'Delivery Register', 
+                FirebaseFirestore.instance.collection('orders').where('status', whereIn: ['Ordered', 'Confirmed']).snapshots(), 
+                Icons.local_shipping_outlined, Colors.orange, 1, subTab: 0
+              ),
+              _buildStatCard(
+                context,
+                'Pending Orders', 
+                FirebaseFirestore.instance.collection('orders').where('status', isEqualTo: 'Ordered').snapshots(), 
+                Icons.assignment_late_outlined, Colors.pink, 1, subTab: 0
+              ),
+              _buildStatCard(
+                context,
+                'Completed Orders', 
+                FirebaseFirestore.instance.collection('orders').where('status', isEqualTo: 'Delivered').snapshots(), 
+                Icons.check_circle_outline, Colors.green, 1, subTab: 1
+              ),
+              _buildStatCard(
+                context,
+                'Payments', 
+                FirebaseFirestore.instance.collection('orders').snapshots(), 
+                Icons.payments_outlined, Colors.purple, 2
+              ),
             ],
           ),
           const SizedBox(height: 40),
-          const Text(
+          Text(
             'Recent Activity',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+            style: TextStyle(
+              fontSize: 20, 
+              fontWeight: FontWeight.bold, 
+              color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+            ),
           ),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
               children: [
-                // Real Activity Logic: Combine multiple streams
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance.collection('products').orderBy('createdAt', descending: true).limit(2).snapshots(),
                   builder: (context, snapshot) {
@@ -160,6 +210,7 @@ class AdminDashboardView extends StatelessWidget {
                     return Column(
                       children: snapshot.data!.docs.map((doc) {
                         return _buildActivityItem(
+                          context,
                           'New product "${doc['name']}" added',
                           'Recently',
                           Icons.add_box_outlined,
@@ -177,6 +228,7 @@ class AdminDashboardView extends StatelessWidget {
                       children: snapshot.data!.docs.map((doc) {
                         final name = doc['name'] ?? 'Unknown User';
                         return _buildActivityItem(
+                          context,
                           'New user "$name" registered',
                           'Recently',
                           Icons.person_add_alt_outlined,
@@ -192,6 +244,7 @@ class AdminDashboardView extends StatelessWidget {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox();
                     final doc = snapshot.data!.docs.first;
                     return _buildActivityItem(
+                      context,
                       'New order #${doc.id.substring(0, 5)} received',
                       'Recently',
                       Icons.receipt_long_outlined,

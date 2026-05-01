@@ -227,11 +227,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.image_outlined, color: Colors.grey),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              item.imageUrl.isNotEmpty ? item.imageUrl : 'https://via.placeholder.com/150',
+              width: 70,
+              height: 70,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 70, height: 70, color: Colors.grey[200], child: const Icon(Icons.image_not_supported),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
