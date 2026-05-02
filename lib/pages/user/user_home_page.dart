@@ -33,6 +33,7 @@ class _UserHomePageState extends State<UserHomePage> {
             _selectedCategory = category;
           });
         },
+        onBack: () => setState(() => _selectedIndex = 0),
       );
     } else {
       return CategoryDetailPage(
@@ -51,9 +52,9 @@ class _UserHomePageState extends State<UserHomePage> {
     final List<Widget> _pages = [
       const HomeContent(),
       _buildCategoryTab(),
-      const CartPage(),
-      const WishlistPage(),
-      const ProfilePage(),
+      CartPage(onBack: () => setState(() => _selectedIndex = 0)),
+      WishlistPage(onBack: () => setState(() => _selectedIndex = 0)),
+      ProfilePage(onBack: () => setState(() => _selectedIndex = 0)),
     ];
 
     return Scaffold(
@@ -91,11 +92,32 @@ class _HomeContentState extends State<HomeContent> {
   final TextEditingController _searchController = TextEditingController();
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  String _userName = 'User';
 
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+    _fetchUserName();
+  }
+
+  Future<void> _fetchUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _userName = doc.get('name') ?? 'User';
+        });
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    // Since we use StreamBuilder, it updates automatically, 
+    // but we can re-fetch the user name or just simulate a delay for UX
+    await _fetchUserName();
+    await Future.delayed(const Duration(milliseconds: 500));
   }
 
   void _listen() async {
@@ -193,9 +215,9 @@ class _HomeContentState extends State<HomeContent> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(
@@ -247,11 +269,19 @@ class _HomeContentState extends State<HomeContent> {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isAvailable ? Colors.white : Colors.grey[50],
+                        color: isAvailable 
+                            ? Theme.of(context).cardColor 
+                            : (Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.grey[50]),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: isAvailable ? primaryColor.withOpacity(0.3) : Colors.grey[200]!),
+                        border: Border.all(
+                            color: isAvailable 
+                                ? primaryColor.withOpacity(0.3) 
+                                : (Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[200]!)),
                         boxShadow: isAvailable ? [
-                           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+                           BoxShadow(
+                               color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.04), 
+                               blurRadius: 10, 
+                               offset: const Offset(0, 4))
                         ] : [],
                       ),
                       child: Column(
@@ -406,7 +436,7 @@ class _HomeContentState extends State<HomeContent> {
   Widget _buildProductCard(BuildContext context, Product product) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -497,7 +527,7 @@ class _HomeContentState extends State<HomeContent> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: product.isAvailable ? Colors.white.withOpacity(0.9) : Colors.grey[200],
+                      color: product.isAvailable ? Theme.of(context).cardColor.withOpacity(0.9) : (Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[200]),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -505,7 +535,7 @@ class _HomeContentState extends State<HomeContent> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: product.isAvailable ? Colors.black87 : Colors.grey[600],
+                        color: product.isAvailable ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87) : Colors.grey[600],
                       ),
                     ),
                   ),
@@ -526,8 +556,8 @@ class _HomeContentState extends State<HomeContent> {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -553,10 +583,10 @@ class _HomeContentState extends State<HomeContent> {
                 children: [
                   Text(
                     product.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D2D2D),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF2D2D2D),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -584,12 +614,13 @@ class _HomeContentState extends State<HomeContent> {
                       color: primaryColor,
                     ),
                   ),
+                  const SizedBox(height: 4),
                   const Spacer(),
                   // Buttons
                   if (product.isAvailable) ...[
                     SizedBox(
                       width: double.infinity,
-                      height: 32,
+                      height: 30,
                       child: ElevatedButton(
                         onPressed: () => _showVariantPicker(context, product, buyNow: true),
                         style: ElevatedButton.styleFrom(
@@ -604,10 +635,10 @@ class _HomeContentState extends State<HomeContent> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     SizedBox(
                       width: double.infinity,
-                      height: 32,
+                      height: 30,
                       child: OutlinedButton.icon(
                         onPressed: () => _showVariantPicker(context, product, buyNow: false),
                         icon: Icon(Icons.shopping_cart_outlined, size: 14, color: primaryColor),
@@ -664,12 +695,13 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
         elevation: 0,
         titleSpacing: 0,
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(width: 8),
             Image.asset(
@@ -700,7 +732,10 @@ class _HomeContentState extends State<HomeContent> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: primaryColor,
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -709,7 +744,7 @@ class _HomeContentState extends State<HomeContent> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Text(
-                'Good Morning, Sarah!',
+                'Good Morning, $_userName!',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -725,7 +760,7 @@ class _HomeContentState extends State<HomeContent> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: primaryColor, width: 1.5),
                 ),
@@ -758,7 +793,7 @@ class _HomeContentState extends State<HomeContent> {
                 children: [
                   Text(
                     _searchQuery.isEmpty ? 'Curated For You' : 'Search Results',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D2D2D)),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF2D2D2D)),
                   ),
                   if (_searchQuery.isEmpty)
                     Text(
@@ -794,14 +829,32 @@ class _HomeContentState extends State<HomeContent> {
                     return Center(child: Text(_searchQuery.isEmpty ? 'No products available' : 'No products found matching "$_searchQuery"'));
                   }
 
-                  return GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.50,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 16,
-                    children: products.map((p) => _buildProductCard(context, p)).toList(),
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double itemWidth = (constraints.maxWidth - 16) / 2;
+                      // Dynamic aspect ratio: taller on narrow screens, wider on larger ones
+                      // We aim for a balance that fits image (flex 5) and info (flex 6) without excess gap
+                      final double screenHeight = MediaQuery.of(context).size.height;
+                      final double screenWidth = MediaQuery.of(context).size.width;
+                      
+                      // Calculate a ratio that works for both short and tall phones
+                      // 0.52 is a better baseline to prevent button overflow
+                      double ratio = 0.52; 
+                      if (screenWidth / screenHeight > 0.5) {
+                        // For wider/shorter screens (like tablets or older phones), use a slightly wider ratio
+                        ratio = 0.58;
+                      }
+
+                      return GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        childAspectRatio: ratio,
+                        mainAxisSpacing: 20,
+                        crossAxisSpacing: 16,
+                        children: products.map((p) => _buildProductCard(context, p)).toList(),
+                      );
+                    }
                   );
                 },
               ),
@@ -810,8 +863,9 @@ class _HomeContentState extends State<HomeContent> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class BannerCarousel extends StatefulWidget {

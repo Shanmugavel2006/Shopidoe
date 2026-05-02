@@ -20,7 +20,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   Future<void> _login() async {
     setState(() => _isLoading = true);
     // Add your admin login logic here
-    await Future.delayed(const Duration(seconds: 2));
     setState(() => _isLoading = false);
     
     if (mounted) {
@@ -33,8 +32,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -42,7 +42,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 0),
                 // Logo Section
                 Center(
                   child: Image.asset(
@@ -53,15 +53,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
+                            boxShadow: [],
                           ),
                           child: const Icon(Icons.shopping_bag, size: 70, color: Color(0xFFB10044)),
                         ),
@@ -85,7 +79,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: isDark ? Colors.white : Colors.grey[800],
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -107,7 +101,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey[800],
+                        color: isDark ? Colors.grey[300] : Colors.grey[800],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -119,14 +113,14 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         prefixIcon: Icon(Icons.email_outlined, color: Colors.grey[400]),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -150,7 +144,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey[800],
+                            color: isDark ? Colors.grey[300] : Colors.grey[800],
                           ),
                         ),
                         TextButton(
@@ -177,14 +171,14 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

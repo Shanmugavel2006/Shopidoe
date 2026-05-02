@@ -396,9 +396,9 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
 
                 return GridView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.42,
+                    childAspectRatio: (MediaQuery.of(context).size.width / MediaQuery.of(context).size.height) > 0.5 ? 0.65 : 0.55,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                   ),

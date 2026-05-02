@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class AdminPaymentsView extends StatelessWidget {
   const AdminPaymentsView({super.key});
 
-  void _showTransactionDetails(BuildContext context, String id) {
+  void _showTransactionDetails(BuildContext context, String id, Map<String, dynamic> data) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final createdAt = data['createdAt'] as Timestamp?;
+    final dateStr = createdAt != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt.toDate()) : 'N/A';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -48,18 +53,19 @@ class AdminPaymentsView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    'ID: $id',
+                    'ID: #$id',
                     style: const TextStyle(color: Color(0xFFB10044), fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 40),
-            _buildDetailItem(context, Icons.phone_outlined, 'Phone', '9003892505'),
-            _buildDetailItem(context, Icons.credit_card_outlined, 'Payment Method', 'Cash on Delivery'),
-            _buildDetailItem(context, Icons.account_balance_wallet_outlined, 'Total Amount', '₹76.00'),
-            _buildDetailItem(context, Icons.info_outline, 'Status', 'CONFIRMED'),
-            _buildDetailItem(context, Icons.calendar_today_outlined, 'Order Date', '2026-04-28 19:29:44.275'),
+            _buildDetailItem(context, Icons.person_outline, 'Customer', data['userName'] ?? 'N/A'),
+            _buildDetailItem(context, Icons.phone_outlined, 'Phone', data['mobile'] ?? 'N/A'),
+            _buildDetailItem(context, Icons.credit_card_outlined, 'Payment Method', data['paymentMethod'] ?? 'N/A'),
+            _buildDetailItem(context, Icons.account_balance_wallet_outlined, 'Total Amount', '₹${data['totalAmount'] ?? '0.00'}'),
+            _buildDetailItem(context, Icons.info_outline, 'Status', data['status'] ?? 'N/A'),
+            _buildDetailItem(context, Icons.calendar_today_outlined, 'Order Date', dateStr),
             const SizedBox(height: 40),
             Text(
               'Shipping Address',
@@ -71,7 +77,7 @@ class AdminPaymentsView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Omalur,Salem-12, salem - 636305',
+              data['address'] ?? 'N/A',
               style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
             ),
             const Spacer(),
@@ -129,6 +135,7 @@ class AdminPaymentsView extends StatelessWidget {
     required String method,
     required IconData icon,
     required String id,
+    required Map<String, dynamic> data,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
@@ -195,15 +202,24 @@ class AdminPaymentsView extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.credit_card, size: 16, color: Colors.grey[400]),
-                  const SizedBox(width: 8),
-                  Text(method, style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.credit_card, size: 16, color: Colors.grey[400]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        method, 
+                        style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => _showTransactionDetails(context, id),
+                onTap: () => _showTransactionDetails(context, id, data),
                 child: const Text(
                   'View Details',
                   style: TextStyle(color: Color(0xFFB10044), fontWeight: FontWeight.bold, fontSize: 14),
@@ -252,9 +268,14 @@ class AdminPaymentsView extends StatelessWidget {
               children: [
                 Icon(Icons.search, color: Colors.grey[400]),
                 const SizedBox(width: 12),
-                Text(
-                  'Search by customer or payment...', 
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14)
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search by customer or payment...',
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      border: InputBorder.none,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -262,43 +283,43 @@ class AdminPaymentsView extends StatelessWidget {
         ),
         const SizedBox(height: 32),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: [
-              _buildPaymentCard(
-                context,
-                name: 'saranraja',
-                date: '29/4/2026',
-                amount: '1316.00',
-                status: 'IN PREPARATION',
-                method: 'Credit/Debit Card',
-                icon: Icons.credit_card,
-                id: '#FaSybN8',
-              ),
-              _buildPaymentCard(
-                context,
-                name: 'saranraja',
-                date: '28/4/2026',
-                amount: '76.00',
-                status: 'CONFIRMED',
-                method: 'Cash on Delivery',
-                icon: Icons.money,
-                id: '#6SBVdEt9',
-              ),
-              _buildPaymentCard(
-                context,
-                name: 'saranraja',
-                date: '28/4/2026',
-                amount: '105.00',
-                status: 'DELIVERED',
-                method: 'Cash on Delivery',
-                icon: Icons.money,
-                id: '#0lqrrB2',
-              ),
-            ],
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('orders').orderBy('createdAt', descending: true).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text('Something went wrong'));
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+              final orders = snapshot.data?.docs ?? [];
+              if (orders.isEmpty) return const Center(child: Text('No payment transactions found'));
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: orders.length,
+                itemBuilder: (context, index) {
+                  final data = orders[index].data() as Map<String, dynamic>;
+                  final id = orders[index].id;
+                  final createdAt = data['createdAt'] as Timestamp?;
+                  final dateStr = createdAt != null ? DateFormat('dd/M/yyyy').format(createdAt.toDate()) : 'N/A';
+                  final shortId = id.length > 6 ? id.substring(0, 6).toUpperCase() : id;
+
+                  return _buildPaymentCard(
+                    context,
+                    name: data['userName'] ?? 'Unknown',
+                    date: dateStr,
+                    amount: data['totalAmount']?.toString() ?? '0.00',
+                    status: data['status'] ?? 'N/A',
+                    method: data['paymentMethod'] ?? 'N/A',
+                    icon: data['paymentMethod'] == 'Cash on Delivery' ? Icons.money : Icons.credit_card,
+                    id: shortId,
+                    data: data,
+                  );
+                },
+              );
+            },
           ),
         ),
       ],
     );
   }
 }
+

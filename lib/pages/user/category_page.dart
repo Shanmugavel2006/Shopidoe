@@ -6,7 +6,8 @@ import 'category_detail_page.dart';
 
 class CategoryPage extends StatefulWidget {
   final Function(String) onCategorySelected;
-  const CategoryPage({super.key, required this.onCategorySelected});
+  final VoidCallback onBack;
+  const CategoryPage({super.key, required this.onCategorySelected, required this.onBack});
 
   @override
   State<CategoryPage> createState() => _CategoryPageState();
@@ -104,6 +105,10 @@ class _CategoryPageState extends State<CategoryPage> {
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: primaryColor),
+          onPressed: widget.onBack,
+        ),
         titleSpacing: 0,
         title: Row(
           children: [

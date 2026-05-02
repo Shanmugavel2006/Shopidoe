@@ -41,6 +41,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           _nameController.text = doc.data()?['name'] ?? '';
           _mobileController.text = doc.data()?['mobile'] ?? '';
           _addressController.text = doc.data()?['address'] ?? '';
+          _cityController.text = doc.data()?['city'] ?? '';
+          _zipController.text = doc.data()?['zip'] ?? '';
         });
       }
     }
@@ -66,6 +68,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'userName': _nameController.text,
         'mobile': _mobileController.text,
         'address': '${_addressController.text}, ${_cityController.text} - ${_zipController.text}',
+        'city': _cityController.text,
+        'zip': _zipController.text,
         'items': widget.items.map((e) => e.toMap()).toList(),
         'totalAmount': _calculateTotal(),
         'paymentMethod': _selectedPayment,
@@ -98,14 +102,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Checkout', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: Text('Checkout', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1A1A1A))),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFB10044)),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -126,8 +135,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text('Your Selection', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
+               const SizedBox(height: 8),
+              Text('Your Selection', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1A1A1A))),
               const SizedBox(height: 20),
               ...widget.items.map((item) => _buildSelectionCard(item)),
               
@@ -153,7 +162,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F3F5),
+                  color: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFF1F3F5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
@@ -168,7 +177,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : Colors.black)),
                         Text('₹${_calculateTotal().toStringAsFixed(0)}', 
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: primaryColor)),
                       ],
@@ -179,7 +188,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
               const SizedBox(height: 32),
               // Payment Options
-              const Text('Payment Options', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
+              Text('Payment Options', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1A1A1A))),
               const SizedBox(height: 16),
               _buildPaymentOption('Credit/Debit Card', 'Visa, Mastercard, RuPay', Icons.credit_card),
               _buildPaymentOption('UPI (Google Pay/PhonePe)', 'Instant bank transfer', Icons.account_balance_wallet_outlined),
@@ -221,9 +230,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.2 : 0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
@@ -262,7 +271,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       children: [
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w500)),
         Text(value, style: TextStyle(
-          color: isPink ? primaryColor : Colors.black, 
+          color: isPink ? primaryColor : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black), 
           fontSize: 15, 
           fontWeight: isPink ? FontWeight.bold : FontWeight.w500
         )),
@@ -278,9 +287,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isSelected ? primaryColor : Colors.grey[100]!, width: 2),
+          border: Border.all(color: isSelected ? primaryColor : (Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[100]!), width: 2),
         ),
         child: Row(
           children: [
@@ -320,10 +329,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
           labelText: label,
           prefixIcon: Icon(icon, color: Colors.grey[400]),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
           labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey[100]!)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey[100]!)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[100]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800]! : Colors.grey[100]!)),
           focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: primaryColor)),
         ),
         validator: (value) => value == null || value.isEmpty ? 'Please enter $label' : null,

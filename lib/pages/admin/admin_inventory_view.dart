@@ -180,19 +180,26 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Switch(
-                                        value: v['isAvailable'] == true,
-                                        onChanged: (val) async {
-                                          setDialogState(() {
-                                            product.variants[index]['isAvailable'] = val;
-                                          });
-                                          await FirebaseFirestore.instance.collection('products').doc(product.id).update({'variants': product.variants});
-                                        },
-                                        activeColor: primaryColor,
+                                      Transform.scale(
+                                        scale: 0.7,
+                                        child: SizedBox(
+                                          width: 40,
+                                          child: Switch(
+                                            value: v['isAvailable'] == true,
+                                            onChanged: (val) async {
+                                              setDialogState(() {
+                                                product.variants[index]['isAvailable'] = val;
+                                              });
+                                              await FirebaseFirestore.instance.collection('products').doc(product.id).update({'variants': product.variants});
+                                            },
+                                            activeColor: primaryColor,
+                                          ),
+                                        ),
                                       ),
+                                      const SizedBox(width: 4),
                                       Text(
                                         (v['isAvailable'] == true) ? 'AVAILABLE' : 'OUT OF STOCK',
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+                                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey[600]),
                                       ),
                                     ],
                                   ),
@@ -306,15 +313,16 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(8)),
-                        child: Text(
-                          product.category.toUpperCase(), 
-                          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        product.category.toUpperCase(), 
+                        style: TextStyle(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -525,10 +533,14 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: products.length,
-                itemBuilder: (context, index) => _buildInventoryItem(products[index]),
+              return RefreshIndicator(
+                onRefresh: () async => await Future.delayed(const Duration(milliseconds: 500)),
+                color: primaryColor,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) => _buildInventoryItem(products[index]),
+                ),
               );
             },
           ),

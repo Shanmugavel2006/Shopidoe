@@ -8,6 +8,7 @@ class Product {
   final String imageUrl;
   final String description;
   final List<Map<String, dynamic>> variants;
+  final int quantity;
 
   Product({
     required this.id,
@@ -19,6 +20,7 @@ class Product {
     required this.imageUrl,
     this.description = '',
     this.variants = const [],
+    this.quantity = 1,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class Product {
       'imageUrl': imageUrl,
       'description': description,
       'variants': variants,
+      'quantity': quantity,
     };
   }
 
@@ -48,6 +51,7 @@ class Product {
       variants: List<Map<String, dynamic>>.from(
         (map['variants'] ?? []).map((v) => Map<String, dynamic>.from(v)),
       ),
+      quantity: map['quantity'] ?? 1,
     );
   }
 }

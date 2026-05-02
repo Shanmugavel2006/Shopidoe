@@ -11,12 +11,19 @@ class CartService {
   // Cart Operations
   static Future<void> addToCart(Product product) async {
     if (_uid == null) return;
-    await _firestore
+    final docRef = _firestore
         .collection('users')
         .doc(_uid)
         .collection('cart')
-        .doc(product.id)
-        .set(product.toMap());
+        .doc(product.id);
+    
+    final doc = await docRef.get();
+    if (doc.exists) {
+      final currentQty = doc.data()?['quantity'] ?? 1;
+      await docRef.update({'quantity': currentQty + 1});
+    } else {
+      await docRef.set(product.toMap());
+    }
   }
 
   static Future<void> removeFromCart(String productId) async {
@@ -27,6 +34,20 @@ class CartService {
         .collection('cart')
         .doc(productId)
         .delete();
+  }
+
+  static Future<void> updateQuantity(String productId, int newQuantity) async {
+    if (_uid == null) return;
+    if (newQuantity < 1) {
+      await removeFromCart(productId);
+      return;
+    }
+    await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('cart')
+        .doc(productId)
+        .update({'quantity': newQuantity});
   }
 
   static Stream<List<Product>> getCartItems() {

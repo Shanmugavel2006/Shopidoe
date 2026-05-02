@@ -13,11 +13,84 @@ class AdminOrdersView extends StatefulWidget {
 class _AdminOrdersViewState extends State<AdminOrdersView> {
   final Color primaryColor = const Color(0xFFB10044);
 
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    if (imageUrl.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.black.withOpacity(0.9),
+              ),
+            ),
+            InteractiveViewer(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const CircularProgressIndicator(color: Colors.white);
+                },
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _updateOrderStatus(String orderId, String newStatus) async {
     try {
       await FirebaseFirestore.instance.collection('orders').doc(orderId).update({'status': newStatus});
     } catch (e) {
       debugPrint('Error updating order status: $e');
+    }
+  }
+
+  Future<void> _deleteOrder(BuildContext context, String orderId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Order'),
+        content: const Text('Are you sure you want to delete this order? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance.collection('orders').doc(orderId).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order deleted successfully')));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting order: $e')));
+        }
+      }
     }
   }
 
@@ -51,11 +124,14 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
               
               // User Details
               const Text('Customer Info', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('Name: ${orderData['userName'] ?? 'N/A'}', style: const TextStyle(fontSize: 14)),
-              Text('Mobile: ${orderData['mobile'] ?? 'N/A'}', style: const TextStyle(fontSize: 14)),
-              Text('Address: ${orderData['address'] ?? 'N/A'}', style: const TextStyle(fontSize: 14)),
-              Text('Payment: ${orderData['paymentMethod'] ?? 'N/A'}', style: const TextStyle(fontSize: 14)),
+              const SizedBox(height: 12),
+              _buildDetailRow(Icons.person, 'Name', orderData['userName'] ?? 'N/A'),
+              _buildDetailRow(Icons.phone, 'Mobile', orderData['mobile'] ?? 'N/A'),
+              _buildDetailRow(Icons.location_on, 'Address', orderData['address'] ?? 'N/A'),
+              if (orderData['city'] != null) _buildDetailRow(Icons.location_city, 'City', orderData['city']),
+              if (orderData['zip'] != null) _buildDetailRow(Icons.pin_drop, 'Zip Code', orderData['zip']),
+              _buildDetailRow(Icons.payment, 'Payment', orderData['paymentMethod'] ?? 'N/A'),
+
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 8),
@@ -76,33 +152,49 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                   itemBuilder: (context, index) {
                     final item = items[index];
                     final imageUrl = item['imageUrl'] ?? '';
+                    final int qty = item['quantity'] ?? 1;
+                    final double price = double.tryParse(item['price'].toString().replaceAll(',', '')) ?? 0.0;
+                    
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey[200]!),
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              width: 50, height: 50,
-                              color: Colors.grey[200],
-                              child: imageUrl.isNotEmpty 
-                                ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c,e,s) => const Icon(Icons.image_not_supported, size: 20)) 
-                                : const Icon(Icons.image_outlined, color: Colors.grey),
+                          GestureDetector(
+                            onTap: () => _showFullScreenImage(context, imageUrl),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: 60, height: 60,
+                                color: Colors.grey[200],
+                                child: imageUrl.isNotEmpty 
+                                  ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c,e,s) => const Icon(Icons.image_not_supported)) 
+                                  : const Icon(Icons.image_outlined, color: Colors.grey),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(item['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text('₹${item['price']}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text(item['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                const SizedBox(height: 4),
+                                Text('ID: ${item['id']?.toString().substring(0, 8) ?? 'N/A'}', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('₹$price x $qty', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                    Text('₹${(price * qty).toStringAsFixed(2)}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -115,6 +207,20 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text('$label: ', style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+        ],
       ),
     );
   }
@@ -160,7 +266,16 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusTextColor ?? statusColor),
                 ),
               ),
-              Text('ID: #$id', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+              Row(
+                children: [
+                  Text('ID: #$id', style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _deleteOrder(context, orderData['id'] ?? id),
+                    child: Icon(Icons.delete_outline, size: 16, color: Colors.red.withOpacity(0.7)),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -169,7 +284,39 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
           Text(details, style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[400] : Colors.grey[600])),
           const SizedBox(height: 4),
           Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFB10044))),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          // Product Thumbnails
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: (orderData['items'] as List?)?.length ?? 0,
+              itemBuilder: (context, index) {
+                final item = (orderData['items'] as List)[index];
+                final String img = item['imageUrl'] ?? '';
+                return GestureDetector(
+                  onTap: () => _showFullScreenImage(context, img),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[800] : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[200]!),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: img.isNotEmpty 
+                        ? Image.network(img, fit: BoxFit.cover, errorBuilder: (c,e,s) => const Icon(Icons.image_not_supported, size: 14)) 
+                        : const Icon(Icons.image_outlined, size: 14, color: Colors.grey),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -207,67 +354,71 @@ class _AdminOrdersViewState extends State<AdminOrdersView> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(24),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final orderDoc = orders[index];
-        final orderData = orderDoc.data() as Map<String, dynamic>;
-        
-        final String status = orderData['status'] ?? 'Ordered';
-        final String name = orderData['userName'] ?? 'Unknown';
-        final String address = orderData['address'] ?? '';
-        final List items = orderData['items'] ?? [];
-        final String details = '$address • ${items.length} Items';
-        final String price = '₹${orderData['totalAmount'] ?? 0}';
-        final String shortId = orderDoc.id.length > 6 ? orderDoc.id.substring(0, 6).toUpperCase() : orderDoc.id;
-
-        if (status == 'Ordered') {
-          return _buildOrderCard(
-            context: context,
-            status: 'IN PREPARATION',
-            statusColor: Colors.blueGrey,
-            id: shortId,
-            name: name,
-            details: details,
-            price: price,
-            actionText: 'Confirm Order',
-            actionColor: Colors.blue,
-            orderData: orderData,
-            onActionPressed: () => _updateOrderStatus(orderDoc.id, 'Confirmed'),
-          );
-        } else if (status == 'Confirmed') {
-          return _buildOrderCard(
-            context: context,
-            status: 'CONFIRMED',
-            statusColor: Colors.blue[100]!,
-            statusTextColor: Colors.blue[700],
-            id: shortId,
-            name: name,
-            details: details,
-            price: price,
-            actionText: 'Mark as Delivered',
-            actionColor: primaryColor,
-            orderData: orderData,
-            onActionPressed: () => _updateOrderStatus(orderDoc.id, 'Delivered'),
-          );
-        } else {
-          return _buildOrderCard(
-            context: context,
-            status: 'DELIVERED',
-            statusColor: primaryColor,
-            statusTextColor: primaryColor,
-            id: shortId,
-            name: name,
-            details: details,
-            price: price,
-            actionText: 'Delivered',
-            actionColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-            orderData: orderData,
-            isActionDisabled: true,
-          );
-        }
-      },
+    return RefreshIndicator(
+      onRefresh: () async => await Future.delayed(const Duration(milliseconds: 500)),
+      color: primaryColor,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(24),
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          final orderDoc = orders[index];
+          final orderData = orderDoc.data() as Map<String, dynamic>;
+          
+          final String status = orderData['status'] ?? 'Ordered';
+          final String name = orderData['userName'] ?? 'Unknown';
+          final String address = orderData['address'] ?? '';
+          final List items = orderData['items'] ?? [];
+          final String details = '$address • ${items.length} Items';
+          final String price = '₹${orderData['totalAmount'] ?? 0}';
+          final String shortId = orderDoc.id.length > 6 ? orderDoc.id.substring(0, 6).toUpperCase() : orderDoc.id;
+  
+          if (status == 'Ordered') {
+            return _buildOrderCard(
+              context: context,
+              status: 'IN PREPARATION',
+              statusColor: Colors.blueGrey,
+              id: shortId,
+              name: name,
+              details: details,
+              price: price,
+              actionText: 'Confirm Order',
+              actionColor: Colors.blue,
+              orderData: orderData,
+              onActionPressed: () => _updateOrderStatus(orderDoc.id, 'Confirmed'),
+            );
+          } else if (status == 'Confirmed') {
+            return _buildOrderCard(
+              context: context,
+              status: 'CONFIRMED',
+              statusColor: Colors.blue[100]!,
+              statusTextColor: Colors.blue[700],
+              id: shortId,
+              name: name,
+              details: details,
+              price: price,
+              actionText: 'Mark as Delivered',
+              actionColor: primaryColor,
+              orderData: orderData,
+              onActionPressed: () => _updateOrderStatus(orderDoc.id, 'Delivered'),
+            );
+          } else {
+            return _buildOrderCard(
+              context: context,
+              status: 'DELIVERED',
+              statusColor: primaryColor,
+              statusTextColor: primaryColor,
+              id: shortId,
+              name: name,
+              details: details,
+              price: price,
+              actionText: 'Delivered',
+              actionColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+              orderData: orderData,
+              isActionDisabled: true,
+            );
+          }
+        },
+      ),
     );
   }
 

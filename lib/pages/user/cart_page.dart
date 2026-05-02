@@ -4,18 +4,24 @@ import '../../services/cart_service.dart';
 import 'checkout_page.dart';
 
 class CartPage extends StatelessWidget {
-  const CartPage({super.key});
+  final VoidCallback onBack;
+  const CartPage({super.key, required this.onBack});
 
   final Color primaryColor = const Color(0xFFB10044);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onBack,
+        ),
         title: const Text('My Cart', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
         elevation: 0,
       ),
       body: StreamBuilder<List<Product>>(
@@ -29,9 +35,9 @@ class CartPage extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
+                  Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[isDark ? 800 : 300]),
                   const SizedBox(height: 16),
-                  const Text('Your cart is empty', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  Text('Your cart is empty', style: TextStyle(fontSize: 18, color: Colors.grey[isDark ? 600 : 400])),
                 ],
               ),
             );
@@ -40,7 +46,7 @@ class CartPage extends StatelessWidget {
           final items = snapshot.data!;
           double total = 0;
           for (var item in items) {
-            total += double.parse(item.price.replaceAll(',', ''));
+            total += double.parse(item.price.replaceAll(',', '')) * item.quantity;
           }
 
           return Column(
@@ -55,9 +61,9 @@ class CartPage extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[100]!),
+                        border: Border.all(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]!),
                       ),
                       child: Row(
                         children: [
@@ -65,7 +71,7 @@ class CartPage extends StatelessWidget {
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.grey[50],
+                              color: isDark ? Colors.grey[900] : Colors.grey[50],
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: item.imageUrl.isNotEmpty
@@ -88,6 +94,17 @@ class CartPage extends StatelessWidget {
                                 Text(item.category, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
                                 const SizedBox(height: 8),
                                 Text('₹${item.price}', style: TextStyle(fontWeight: FontWeight.w900, color: primaryColor, fontSize: 16)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _buildQtyBtn(Icons.remove, () => CartService.updateQuantity(item.id, item.quantity - 1), isDark),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text(item.quantity.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    ),
+                                    _buildQtyBtn(Icons.add, () => CartService.updateQuantity(item.id, item.quantity + 1), isDark),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -104,8 +121,8 @@ class CartPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                  color: Theme.of(context).cardColor,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.3 : 0.05), blurRadius: 10, offset: const Offset(0, -5))],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(
@@ -143,6 +160,20 @@ class CartPage extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildQtyBtn(IconData icon, VoidCallback onTap, bool isDark) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 18, color: isDark ? Colors.white : Colors.black),
       ),
     );
   }

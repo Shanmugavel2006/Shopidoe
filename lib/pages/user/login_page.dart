@@ -21,7 +21,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   final Color primaryColor = const Color(0xFFB10044); // Magenta from image
-  final Color backgroundColor = const Color(0xFFFAFAFA);
 
   @override
   void initState() {
@@ -37,12 +36,48 @@ class _LoginPageState extends State<LoginPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Account Deleted'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: primaryColor),
+            const SizedBox(width: 10),
+            const Text('Account Deleted'),
+          ],
+        ),
         content: const Text('Your account has been deleted by the administrator. Please sign up again to continue using the store.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('OK', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title, 
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('TRY AGAIN', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -55,29 +90,36 @@ class _LoginPageState extends State<LoginPage> {
 
     if (input.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter mobile/email and password')),
+        const SnackBar(
+          content: Text('Please enter mobile/email and password'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
 
+    // Dismiss keyboard for better UX
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     
     try {
       String email = input;
       DocumentSnapshot? userDocSnapshot;
       
-      // If it's a mobile number (doesn't contain @), find the email in Firestore
+      // Fast check: If it's a mobile number (doesn't contain @), find the email in Firestore
       if (!input.contains('@')) {
-        final userDoc = await FirebaseFirestore.instance
+        final userQuery = await FirebaseFirestore.instance
             .collection('users')
             .where('mobile', isEqualTo: input)
             .limit(1)
             .get();
         
-        if (userDoc.docs.isEmpty) {
-          throw FirebaseAuthException(code: 'user-not-found', message: 'No user found with this mobile number.');
+        if (userQuery.docs.isEmpty) {
+          _showErrorDialog('Wrong Credentials', 'No user found with this mobile number. Please check your number or sign up.');
+          setState(() => _isLoading = false);
+          return;
         }
-        userDocSnapshot = userDoc.docs.first;
+        userDocSnapshot = userQuery.docs.first;
         email = userDocSnapshot.get('email');
       }
 
@@ -87,6 +129,7 @@ class _LoginPageState extends State<LoginPage> {
         password: password,
       );
 
+      // Check isActive status in parallel or right after
       if (userDocSnapshot == null) {
         userDocSnapshot = await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).get();
       }
@@ -95,7 +138,9 @@ class _LoginPageState extends State<LoginPage> {
         final userData = userDocSnapshot.data() as Map<String, dynamic>;
         if (userData['isActive'] == false) {
           await FirebaseAuth.instance.signOut();
-          throw FirebaseAuthException(code: 'account-deactivated', message: 'Your account has been deactivated. Try to contact admin.');
+          _showErrorDialog('Account Deactivated', 'Your account has been deactivated. Please contact admin.');
+          setState(() => _isLoading = false);
+          return;
         }
       }
 
@@ -106,22 +151,42 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Login failed')),
-      );
+      String title = 'Login Failed';
+      String message = e.message ?? 'An unexpected error occurred.';
+
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        title = 'Wrong Credentials';
+        message = 'The email/mobile or password you entered is incorrect. Please try again.';
+      } else if (e.code == 'invalid-email') {
+        title = 'Invalid Email';
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'too-many-requests') {
+        title = 'Too Many Attempts';
+        message = 'Login has been temporarily disabled due to too many failed attempts. Try again later.';
+      } else if (e.code == 'network-request-failed') {
+        title = 'Network Error';
+        message = 'Please check your internet connection and try again.';
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog(title, message);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog('Error', 'Something went wrong: $e');
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      // We don't set _isLoading = false here if we are navigating away
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -129,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 0),
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
@@ -139,15 +204,9 @@ class _LoginPageState extends State<LoginPage> {
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
+                            boxShadow: [],
                           ),
                           child: const Icon(Icons.shopping_bag, size: 70, color: Color(0xFFB10044)),
                         ),
@@ -171,7 +230,7 @@ class _LoginPageState extends State<LoginPage> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: isDark ? Colors.white : Colors.grey[800],
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -193,25 +252,25 @@ class _LoginPageState extends State<LoginPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey[800],
+                        color: isDark ? Colors.grey[300] : Colors.grey[800],
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _inputController,
                       decoration: InputDecoration(
-                        hintText: '+91 98765 43210 or email',
+                        hintText: 'number or email',
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         prefixIcon: Icon(Icons.person_outline, color: Colors.grey[400]),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey[200]!),
+                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -235,7 +294,7 @@ class _LoginPageState extends State<LoginPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey[800],
+                            color: isDark ? Colors.grey[300] : Colors.grey[800],
                         ),
                       ),
                       TextButton(
@@ -267,14 +326,14 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[200]!),
+                        borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[200]!),
+                        borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -363,5 +422,5 @@ class _LoginPageState extends State<LoginPage> {
       ),
     ),
   );
-  }
+}
 }

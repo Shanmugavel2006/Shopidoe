@@ -29,6 +29,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   bool _isUploading = false;
   bool _isSaving = false;
   final ImagePicker _picker = ImagePicker();
+  List<String> _existingCategories = [];
 
   @override
   void initState() {
@@ -44,9 +45,21 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
         _variants.addAll(widget.product!.variants);
       }
     }
+    _fetchCategories();
     _categoryController.addListener(() {
       setState(() {}); // Update icon preview as user types
     });
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final snap = await FirebaseFirestore.instance.collection('categories').get();
+      setState(() {
+        _existingCategories = snap.docs.map((doc) => doc['name'] as String).toList();
+      });
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+    }
   }
 
   @override
@@ -358,30 +371,80 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : Colors.blueGrey[800], letterSpacing: 1),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _categoryController,
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-            decoration: InputDecoration(
-              hintText: 'e.g. Masala, Soap, Grocery',
-              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-              filled: true,
-              fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
-              prefixIcon: Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: CategoryUtils.getColorForCategory(_categoryController.text).withOpacity(0.1),
-                  shape: BoxShape.circle,
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return _existingCategories;
+              }
+              return _existingCategories.where((String option) {
+                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              _categoryController.text = selection;
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              // Sync the autocomplete controller with our state controller
+              if (controller.text != _categoryController.text && _categoryController.text.isNotEmpty && controller.text.isEmpty) {
+                controller.text = _categoryController.text;
+              }
+              
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                onChanged: (val) {
+                  _categoryController.text = val;
+                },
+                decoration: InputDecoration(
+                  hintText: 'e.g. Masala, Soap, Grocery',
+                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+                  prefixIcon: Container(
+                    margin: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: CategoryUtils.getColorForCategory(_categoryController.text).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      CategoryUtils.getIconForCategory(_categoryController.text),
+                      color: CategoryUtils.getColorForCategory(_categoryController.text),
+                      size: 20,
+                    ),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
-                child: Icon(
-                  CategoryUtils.getIconForCategory(_categoryController.text),
-                  color: CategoryUtils.getColorForCategory(_categoryController.text),
-                  size: 20,
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  borderRadius: BorderRadius.circular(12),
+                  color: isDark ? const Color(0xFF2D2D2D) : Colors.white,
+                  child: Container(
+                    width: MediaQuery.of(context).size.width - 48,
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+                        return ListTile(
+                          title: Text(option, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.all(16),
-            ),
+              );
+            },
           ),
           const SizedBox(height: 32),
           Text(

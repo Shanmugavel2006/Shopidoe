@@ -216,13 +216,17 @@ class AdminUsersView extends StatelessWidget {
                 );
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  final userData = users[index].data() as Map<String, dynamic>;
-                  return _buildUserCard(context, userData);
-                },
+              return RefreshIndicator(
+                onRefresh: () async => await Future.delayed(const Duration(milliseconds: 500)),
+                color: primaryColor,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final userData = users[index].data() as Map<String, dynamic>;
+                    return _buildUserCard(context, userData);
+                  },
+                ),
               );
             },
           ),

@@ -9,7 +9,8 @@ import '../../main.dart';
 import '../../services/cloudinary_service.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final VoidCallback onBack;
+  const ProfilePage({super.key, required this.onBack});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -189,36 +190,83 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _editAddress(String currentAddress) async {
-    final TextEditingController addressController = TextEditingController(text: currentAddress);
+  Future<void> _editShippingDetails(Map<String, dynamic> userData) async {
+    final TextEditingController nameController = TextEditingController(text: userData['name'] ?? '');
+    final TextEditingController mobileController = TextEditingController(text: userData['mobile'] ?? '');
+    final TextEditingController addressController = TextEditingController(text: userData['address'] ?? '');
+    final TextEditingController cityController = TextEditingController(text: userData['city'] ?? '');
+    final TextEditingController zipController = TextEditingController(text: userData['zip'] ?? '');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Address'),
-        content: TextField(
-          controller: addressController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Enter new address',
-            border: OutlineInputBorder(),
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Edit Shipping Details', style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildEditField('Name', nameController, Icons.person_outline, isDark),
+              _buildEditField('Mobile', mobileController, Icons.phone_outlined, isDark, keyboardType: TextInputType.phone),
+              _buildEditField('Street Address', addressController, Icons.home_outlined, isDark, maxLines: 2),
+              _buildEditField('City', cityController, Icons.location_city_outlined, isDark),
+              _buildEditField('Zip Code', zipController, Icons.pin_drop_outlined, isDark, keyboardType: TextInputType.number),
+            ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
             onPressed: () async {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null) {
                 await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                  'name': nameController.text.trim(),
+                  'mobile': mobileController.text.trim(),
                   'address': addressController.text.trim(),
+                  'city': cityController.text.trim(),
+                  'zip': zipController.text.trim(),
                 });
               }
               if (mounted) Navigator.pop(context);
             },
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
+            child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEditField(String label, TextEditingController controller, IconData icon, bool isDark, {int maxLines = 1, TextInputType? keyboardType}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+          prefixIcon: Icon(icon, color: primaryColor, size: 20),
+          filled: true,
+          fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
       ),
     );
   }
@@ -279,6 +327,10 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: primaryColor),
+          onPressed: widget.onBack,
+        ),
         centerTitle: true,
         title: Text(
           'Profile',
@@ -299,6 +351,7 @@ class _ProfilePageState extends State<ProfilePage> {
           builder: (context, userSnapshot) {
             if (!userSnapshot.hasData) return const Center(child: CircularProgressIndicator());
             
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
             final userName = userData['name'] ?? 'User';
             final email = currentUser.email ?? 'No email';
@@ -608,7 +661,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 20),
 
-                // Saved Addresses Section
+                // Shipping Details Section
                 _buildSectionCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,10 +669,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Saved Addresses', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          const Text('Shipping Details', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                           GestureDetector(
-                            onTap: () => _editAddress(address),
-                            child: Text('Edit / Add', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                            onTap: () => _editShippingDetails(userData),
+                            child: Text('Edit Info', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                         ],
                       ),
@@ -630,23 +683,15 @@ class _ProfilePageState extends State<ProfilePage> {
                           color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : const Color(0xFFF8F9FA),
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        child: Row(
+                        child: Column(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(color: Color(0xFF1B4332), shape: BoxShape.circle),
-                              child: const Icon(Icons.home, color: Colors.white, size: 20),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Home', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  Text(address, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                ],
-                              ),
-                            ),
+                            _buildInfoRow(Icons.person_outline, userName, isDark),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(Icons.phone_outlined, mobile, isDark),
+                            const SizedBox(height: 12),
+                            _buildInfoRow(Icons.home_outlined, 
+                              '${userData['address'] ?? 'No address'}, ${userData['city'] ?? ''} - ${userData['zip'] ?? ''}', 
+                              isDark),
                           ],
                         ),
                       ),
@@ -689,6 +734,32 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(40),
       ),
       child: child,
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String value, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: primaryColor, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.grey[300] : Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
