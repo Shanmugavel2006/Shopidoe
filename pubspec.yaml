@@ -44,6 +44,7 @@ dependencies:
   path: ^1.9.1
   crypto: ^3.0.7
   speech_to_text: ^7.3.0
+  connectivity_plus: ^7.1.1
 
 dev_dependencies:
   flutter_test:

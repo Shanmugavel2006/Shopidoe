@@ -173,9 +173,20 @@ class _AdminHomePageState extends State<AdminHomePage> {
               }
             },
           ),
-          const CircleAvatar(
-            radius: 16,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=12'),
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
+            builder: (context, snapshot) {
+              String? photoUrl;
+              if (snapshot.hasData && snapshot.data!.exists) {
+                photoUrl = (snapshot.data!.data() as Map<String, dynamic>)['profileImageUrl'];
+              }
+              return CircleAvatar(
+                radius: 16,
+                backgroundColor: primaryColor.withOpacity(0.1),
+                backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                child: photoUrl == null ? Icon(Icons.person, size: 18, color: primaryColor) : null,
+              );
+            },
           ),
           const SizedBox(width: 16),
         ],

@@ -290,7 +290,9 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image Section
           Container(
             width: 80,
             height: 80,
@@ -306,26 +308,31 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
               : const Icon(Icons.image_outlined, color: Colors.grey),
           ),
           const SizedBox(width: 16),
+          // Content Section
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top Row: Category and Action Buttons
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: primaryColor.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        product.category.toUpperCase(), 
-                        style: TextStyle(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: primaryColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          product.category.toUpperCase(), 
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Action Buttons Row
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -351,20 +358,19 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                           },
                           icon: Icon(Icons.edit_outlined, size: 18, color: primaryColor),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => _deleteProduct(product.id),
                           icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
                         ),
-                        const SizedBox(width: 8),
-                        Text('#${product.id.substring(0, 5)}', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
                       ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
+                // Product Name
                 Text(
                   product.name, 
                   style: TextStyle(
@@ -373,18 +379,28 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                     color: isDark ? Colors.white : Colors.black87
                   )
                 ),
-                if (product.description.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    product.description, 
-                    maxLines: 1, 
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic),
-                  ),
-                ],
+                // Product Description or ID
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (product.description.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          product.description, 
+                          maxLines: 1, 
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500], fontStyle: FontStyle.italic),
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    Text('#${product.id.substring(0, 5)}', style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                  ],
+                ),
                 const SizedBox(height: 4),
-                Text('₹ ${product.price}', style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
+                Text('₹ ${product.price}', style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor, fontSize: 16)),
                 const SizedBox(height: 8),
+                // Variants Tag
                 if (product.variants.isNotEmpty)
                   GestureDetector(
                     onTap: () => _showVariantsDialog(product),
@@ -402,30 +418,31 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                           Icon(Icons.layers_outlined, color: primaryColor, size: 13),
                           const SizedBox(width: 4),
                           Text(
-                            '${product.variants.length} Variants – Tap to View',
+                            '${product.variants.length} Variants – View',
                             style: TextStyle(fontSize: 11, color: primaryColor, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
                     ),
                   ),
+                // Availability Switch
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Row(
-                      children: [
-                        Switch(
-                          value: product.isAvailable, 
-                          onChanged: (v) async {
-                            await FirebaseFirestore.instance.collection('products').doc(product.id).update({'isAvailable': v});
-                          }, 
-                          activeColor: primaryColor,
-                        ),
-                        Text(
-                          'AVAILABLE', 
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[600])
-                        ),
-                      ],
+                    Text(
+                      product.isAvailable ? 'AVAILABLE' : 'OUT OF STOCK', 
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: product.isAvailable ? primaryColor : Colors.grey)
+                    ),
+                    const SizedBox(width: 4),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: product.isAvailable, 
+                        onChanged: (v) async {
+                          await FirebaseFirestore.instance.collection('products').doc(product.id).update({'isAvailable': v});
+                        }, 
+                        activeColor: primaryColor,
+                      ),
                     ),
                   ],
                 ),
@@ -436,6 +453,7 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'category_page.dart';
@@ -877,13 +878,35 @@ class BannerCarousel extends StatefulWidget {
 
 class _BannerCarouselState extends State<BannerCarousel> {
   int _currentIndex = 0;
+  int _itemCount = 0;
   final Color primaryColor = const Color(0xFFB10044);
   late final Stream<QuerySnapshot> _bannersStream;
+  late final PageController _pageController;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     _bannersStream = FirebaseFirestore.instance.collection('banners').orderBy('createdAt', descending: true).snapshots();
+    
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_pageController.hasClients && _itemCount > 1) {
+        int nextIndex = (_currentIndex + 1) % _itemCount;
+        _pageController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -896,12 +919,19 @@ class _BannerCarouselState extends State<BannerCarousel> {
         }
 
         final banners = snapshot.data!.docs;
+        
+        // Update item count for auto-scroll logic
+        if (_itemCount != banners.length) {
+          _itemCount = banners.length;
+          // Note: We could restart timer here if needed
+        }
 
         return Column(
           children: [
             SizedBox(
               height: 210,
               child: PageView.builder(
+                controller: _pageController,
                 itemCount: banners.length,
                 onPageChanged: (index) {
                   setState(() {

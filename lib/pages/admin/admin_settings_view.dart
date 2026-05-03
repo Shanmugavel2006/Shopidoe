@@ -6,6 +6,12 @@ import 'package:image_picker/image_picker.dart';
 import '../user/login_page.dart';
 import '../../main.dart';
 import '../../services/cloudinary_service.dart';
+import 'settings/store_info_page.dart';
+import 'settings/payment_methods_page.dart';
+import 'settings/security_settings_page.dart';
+import 'settings/notification_settings_page.dart';
+import 'settings/help_support_page.dart';
+import 'settings/admin_profile_edit_page.dart';
 
 class AdminSettingsView extends StatefulWidget {
   const AdminSettingsView({super.key});
@@ -34,6 +40,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
         if (user != null) {
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'profileImageUrl': url,
+            'role': 'admin',
           }, SetOptions(merge: true));
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -78,43 +85,55 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                 _pickAndUploadAdminImage();
               },
             ),
+            ListTile(
+              leading: Icon(Icons.edit_outlined, color: primaryColor),
+              title: const Text('Edit Profile Details', style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminProfileEditPage()));
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuOption(IconData icon, String title, String subtitle, Color iconColor) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+  Widget _buildMenuOption(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color),
             ),
-            child: Icon(icon, color: iconColor),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
-              ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                ],
+              ),
             ),
-          ),
-          Icon(Icons.chevron_right, color: Colors.grey[300]),
-        ],
+            Icon(Icons.chevron_right, color: Colors.grey[300]),
+          ],
+        ),
       ),
     );
   }
@@ -122,6 +141,8 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -129,26 +150,36 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
         children: [
           Text(
             'Store Settings',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
           ),
           const SizedBox(height: 8),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 40),
           
-          const Text('Profile Customization', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Profile Customization', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              TextButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminProfileEditPage())),
+                child: Text('Edit Profile', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           if (user != null)
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
               builder: (context, snapshot) {
                 final data = snapshot.data?.data() as Map<String, dynamic>?;
                 final imageUrl = data?['profileImageUrl'] ?? 'https://i.pravatar.cc/150?img=12';
+                final adminName = data?['name'] ?? 'Admin User';
                 
                 return Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
+                    color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
                   ),
@@ -162,7 +193,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFF66BB6A), width: 2),
+                                border: Border.all(color: primaryColor.withOpacity(0.5), width: 2),
                               ),
                               child: CircleAvatar(
                                 radius: 50,
@@ -175,8 +206,8 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                               right: 4,
                               child: Container(
                                 padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF1B4332),
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.edit, color: Colors.white, size: 16),
@@ -186,7 +217,8 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text('Tap to change admin photo', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+                      Text(adminName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text(user.email ?? '', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
                     ],
                   ),
                 );
@@ -199,7 +231,7 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
             ),
@@ -207,8 +239,8 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(10)),
-                  child: Icon(Icons.wb_sunny_outlined, color: Colors.blue[700]),
+                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.wb_sunny_outlined, color: Colors.blue[400]),
                 ),
                 const SizedBox(width: 16),
                 const Text('Dark Mode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -230,11 +262,41 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
           ),
           
           const SizedBox(height: 40),
-          _buildMenuOption(Icons.storefront_outlined, 'Store Information', 'Edit name, address, and contact', Colors.teal),
-          _buildMenuOption(Icons.notifications_none_outlined, 'Notification Settings', 'Manage push and email alerts', Colors.blue),
-          _buildMenuOption(Icons.payment_outlined, 'Payment Methods', 'Enable/disable payment options', Colors.green),
-          _buildMenuOption(Icons.security_outlined, 'Security', 'Change password and admin permissions', Colors.blueGrey),
-          _buildMenuOption(Icons.help_outline, 'Help & Support', 'Visit help center or contact us', Colors.orange),
+          _buildMenuOption(
+            Icons.storefront_outlined, 
+            'Store Information', 
+            'Edit name, address, and contact', 
+            Colors.teal,
+            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const StoreInfoPage())),
+          ),
+          _buildMenuOption(
+            Icons.notifications_none_outlined, 
+            'Notification Settings', 
+            'Manage push and email alerts', 
+            Colors.blue,
+            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationSettingsPage())),
+          ),
+          _buildMenuOption(
+            Icons.payment_outlined, 
+            'Payment Methods', 
+            'Enable/disable payment options', 
+            Colors.green,
+            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PaymentMethodsPage())),
+          ),
+          _buildMenuOption(
+            Icons.security_outlined, 
+            'Security', 
+            'Change password and email', 
+            Colors.blueGrey,
+            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecuritySettingsPage())),
+          ),
+          _buildMenuOption(
+            Icons.help_outline, 
+            'Help & Support', 
+            'Visit help center or contact us', 
+            Colors.orange,
+            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpSupportPage())),
+          ),
           
           const SizedBox(height: 40),
           SizedBox(
@@ -265,3 +327,4 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
     );
   }
 }
+

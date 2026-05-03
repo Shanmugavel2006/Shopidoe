@@ -26,10 +26,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   final Color primaryColor = const Color(0xFFB10044);
 
+  Map<String, dynamic> _paymentSettings = {
+    'codEnabled': true,
+    'onlineEnabled': true,
+    'upiEnabled': true,
+  };
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadPaymentSettings();
+  }
+
+  Future<void> _loadPaymentSettings() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('settings').doc('payment_methods').get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _paymentSettings = doc.data()!;
+          // Set a default selected payment that is actually enabled
+          if (_paymentSettings['onlineEnabled'] == true) {
+            _selectedPayment = 'Credit/Debit Card';
+          } else if (_paymentSettings['upiEnabled'] == true) {
+            _selectedPayment = 'UPI (Google Pay/PhonePe)';
+          } else if (_paymentSettings['codEnabled'] == true) {
+            _selectedPayment = 'Cash on Delivery';
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading payment settings: $e');
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -58,6 +86,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   Future<void> _placeOrder() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    if (_selectedPayment.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a payment method')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -99,6 +132,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -190,9 +224,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
               // Payment Options
               Text('Payment Options', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1A1A1A))),
               const SizedBox(height: 16),
-              _buildPaymentOption('Credit/Debit Card', 'Visa, Mastercard, RuPay', Icons.credit_card),
-              _buildPaymentOption('UPI (Google Pay/PhonePe)', 'Instant bank transfer', Icons.account_balance_wallet_outlined),
-              _buildPaymentOption('Cash on Delivery', 'Pay when you receive', Icons.payments_outlined),
+              if (_paymentSettings['onlineEnabled'] == true)
+                _buildPaymentOption('Credit/Debit Card', 'Visa, Mastercard, RuPay', Icons.credit_card),
+              if (_paymentSettings['upiEnabled'] == true)
+                _buildPaymentOption('UPI (Google Pay/PhonePe)', 'Instant bank transfer', Icons.account_balance_wallet_outlined),
+              if (_paymentSettings['codEnabled'] == true)
+                _buildPaymentOption('Cash on Delivery', 'Pay when you receive', Icons.payments_outlined),
+              
+              if (_paymentSettings['onlineEnabled'] != true && _paymentSettings['upiEnabled'] != true && _paymentSettings['codEnabled'] != true)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No payment methods available. Please contact support.', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
 
               const SizedBox(height: 40),
               SizedBox(

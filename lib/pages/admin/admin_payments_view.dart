@@ -20,10 +20,10 @@ class AdminPaymentsView extends StatelessWidget {
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 12),
             Center(
               child: Container(
                 width: 40,
@@ -34,63 +34,78 @@ class AdminPaymentsView extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Transaction Details',
-                  style: TextStyle(
-                    fontSize: 24, 
-                    fontWeight: FontWeight.bold, 
-                    color: isDark ? Colors.white : Colors.black87
-                  ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Transaction Details',
+                            style: TextStyle(
+                              fontSize: 24, 
+                              fontWeight: FontWeight.bold, 
+                              color: isDark ? Colors.white : Colors.black87
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFB10044).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'ID: #$id',
+                            style: const TextStyle(color: Color(0xFFB10044), fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                    _buildDetailItem(context, Icons.person_outline, 'Customer', data['userName'] ?? 'N/A'),
+                    _buildDetailItem(context, Icons.phone_outlined, 'Phone', data['mobile'] ?? 'N/A'),
+                    _buildDetailItem(context, Icons.credit_card_outlined, 'Payment Method', data['paymentMethod'] ?? 'N/A'),
+                    _buildDetailItem(context, Icons.account_balance_wallet_outlined, 'Total Amount', '₹${data['totalAmount'] ?? '0.00'}'),
+                    _buildDetailItem(context, Icons.info_outline, 'Status', data['status'] ?? 'N/A'),
+                    _buildDetailItem(context, Icons.calendar_today_outlined, 'Order Date', dateStr),
+                    const SizedBox(height: 40),
+                    Text(
+                      'Shipping Address',
+                      style: TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold, 
+                        color: isDark ? Colors.white : Colors.black87
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      data['address'] ?? 'N/A',
+                      style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                    ),
+                  ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFB10044).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'ID: #$id',
-                    style: const TextStyle(color: Color(0xFFB10044), fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 40),
-            _buildDetailItem(context, Icons.person_outline, 'Customer', data['userName'] ?? 'N/A'),
-            _buildDetailItem(context, Icons.phone_outlined, 'Phone', data['mobile'] ?? 'N/A'),
-            _buildDetailItem(context, Icons.credit_card_outlined, 'Payment Method', data['paymentMethod'] ?? 'N/A'),
-            _buildDetailItem(context, Icons.account_balance_wallet_outlined, 'Total Amount', '₹${data['totalAmount'] ?? '0.00'}'),
-            _buildDetailItem(context, Icons.info_outline, 'Status', data['status'] ?? 'N/A'),
-            _buildDetailItem(context, Icons.calendar_today_outlined, 'Order Date', dateStr),
-            const SizedBox(height: 40),
-            Text(
-              'Shipping Address',
-              style: TextStyle(
-                fontSize: 18, 
-                fontWeight: FontWeight.bold, 
-                color: isDark ? Colors.white : Colors.black87
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              data['address'] ?? 'N/A',
-              style: TextStyle(fontSize: 15, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB10044),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB10044),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -127,6 +142,37 @@ class AdminPaymentsView extends StatelessWidget {
     );
   }
 
+  Future<void> _deleteTransaction(BuildContext context, String orderId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text('Are you sure you want to delete this transaction record? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance.collection('orders').doc(orderId).delete();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaction deleted successfully')));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting transaction: $e')));
+        }
+      }
+    }
+  }
+
   Widget _buildPaymentCard(BuildContext context, {
     required String name,
     required String date,
@@ -135,6 +181,7 @@ class AdminPaymentsView extends StatelessWidget {
     required String method,
     required IconData icon,
     required String id,
+    required String fullId,
     required Map<String, dynamic> data,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -149,6 +196,7 @@ class AdminPaymentsView extends StatelessWidget {
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
@@ -178,13 +226,23 @@ class AdminPaymentsView extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '₹$amount', 
-                    style: TextStyle(
-                      fontSize: 18, 
-                      fontWeight: FontWeight.w900, 
-                      color: isDark ? Colors.white : const Color(0xFF1A1A1A)
-                    )
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '₹$amount', 
+                        style: TextStyle(
+                          fontSize: 18, 
+                          fontWeight: FontWeight.w900, 
+                          color: isDark ? Colors.white : const Color(0xFF1A1A1A)
+                        )
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _deleteTransaction(context, fullId),
+                        child: Icon(Icons.delete_outline, size: 18, color: Colors.red.withOpacity(0.6)),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Container(
@@ -231,6 +289,7 @@ class AdminPaymentsView extends StatelessWidget {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +370,7 @@ class AdminPaymentsView extends StatelessWidget {
                     method: data['paymentMethod'] ?? 'N/A',
                     icon: data['paymentMethod'] == 'Cash on Delivery' ? Icons.money : Icons.credit_card,
                     id: shortId,
+                    fullId: id,
                     data: data,
                   );
                 },
