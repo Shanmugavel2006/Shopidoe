@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'category_page.dart';
 import 'profile_page.dart';
@@ -9,10 +10,13 @@ import 'category_detail_page.dart';
 import 'cart_page.dart';
 import 'wishlist_page.dart';
 import 'checkout_page.dart';
+import 'product_details_page.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:share_plus/share_plus.dart';
+import 'package:app_links/app_links.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -58,23 +62,49 @@ class _UserHomePageState extends State<UserHomePage> {
       ProfilePage(onBack: () => setState(() => _selectedIndex = 0)),
     ];
 
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey[400],
-        selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'HOME'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'CATEGORIES'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_rounded), label: 'CART'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'WISHLIST'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'ACCOUNT'),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit App'),
+            content: const Text('Are you sure you want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Yes', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        if (shouldPop == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: _pages[_selectedIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: primaryColor,
+          unselectedItemColor: Colors.grey[400],
+          selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'HOME'),
+            BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'CATEGORIES'),
+            BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_rounded), label: 'CART'),
+            BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'WISHLIST'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'ACCOUNT'),
+          ],
+        ),
       ),
     );
   }
@@ -95,11 +125,76 @@ class _HomeContentState extends State<HomeContent> {
   bool _isListening = false;
   String _userName = 'User';
 
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
   @override
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
     _fetchUserName();
+    _initAppLinks();
+  }
+
+  Future<void> _initAppLinks() async {
+    _appLinks = AppLinks();
+    
+    // Check initial link if app was closed
+    try {
+      final initialLink = await _appLinks.getInitialLink();
+      if (initialLink != null) {
+        _handleAppLink(initialLink);
+      }
+    } catch (e) {
+      debugPrint('Error getting initial link: $e');
+    }
+    
+    // Handle link when app is in background
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleAppLink(uri);
+    });
+  }
+
+  void _handleAppLink(Uri uri) async {
+    // Example uri: https://shopidoe.app/product/PRODUCT_ID
+    if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'product') {
+      final productId = uri.pathSegments[1];
+      try {
+        final doc = await FirebaseFirestore.instance.collection('products').doc(productId).get();
+        if (doc.exists && mounted) {
+           final data = doc.data() as Map<String, dynamic>;
+           data['id'] = doc.id;
+           final product = Product.fromMap(data);
+           // Show the variant picker/details
+           _showVariantPicker(context, product, buyNow: false);
+        } else {
+           if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Product not found')),
+             );
+           }
+        }
+      } catch (e) {
+        debugPrint('Error fetching shared product: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  String _getGreeting() {
+    var hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
+    }
   }
 
   Future<void> _fetchUserName() async {
@@ -145,52 +240,6 @@ class _HomeContentState extends State<HomeContent> {
     }
   }
 
-  final List<Product> _allProducts = [
-    Product(
-      id: 'p1',
-      category: 'Stationery',
-      name: 'Blush Leather Journal',
-      price: '1,299',
-      status: 'In Stock',
-      isAvailable: true,
-      imageUrl: '',
-    ),
-    Product(
-      id: 'p2',
-      category: 'Cosmetics',
-      name: 'Velvet Matte Lipstick',
-      price: '850',
-      status: 'Unavailable',
-      isAvailable: false,
-      imageUrl: '',
-    ),
-    Product(
-      id: 'p3',
-      category: 'Accessories',
-      name: 'Rose Gold Watch',
-      price: '4,499',
-      status: 'In Stock',
-      isAvailable: true,
-      imageUrl: '',
-    ),
-    Product(
-      id: 'p4',
-      category: 'Lifestyle',
-      name: 'Petal Scented Candle',
-      price: '1,850',
-      status: 'In Stock',
-      isAvailable: true,
-      imageUrl: '',
-    ),
-  ];
-
-  List<Product> get _filteredProducts {
-    if (_searchQuery.isEmpty) return _allProducts;
-    return _allProducts
-        .where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                      p.category.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-  }
 
   void _showVariantPicker(BuildContext context, Product product, {required bool buyNow}) {
     if (product.variants.isEmpty) {
@@ -292,32 +341,9 @@ class _HomeContentState extends State<HomeContent> {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  if (variantProduct.imageUrl.isNotEmpty) {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog.fullscreen(
-                                        backgroundColor: Colors.black,
-                                        child: Stack(
-                                          children: [
-                                            Center(
-                                              child: InteractiveViewer(
-                                                minScale: 0.5,
-                                                maxScale: 4.0,
-                                                child: Image.network(variantProduct.imageUrl, fit: BoxFit.contain),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 40, right: 20,
-                                              child: IconButton(
-                                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                                onPressed: () => Navigator.pop(context),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (context) => ProductDetailsPage(product: variantProduct),
+                                  ));
                                 },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
@@ -459,44 +485,9 @@ class _HomeContentState extends State<HomeContent> {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   child: GestureDetector(
                     onTap: () {
-                      if (product.imageUrl.isNotEmpty) {
-                        showDialog(
-                          context: context,
-                          builder: (context) => Dialog.fullscreen(
-                            backgroundColor: Colors.black,
-                            child: Stack(
-                              children: [
-                                Center(
-                                  child: InteractiveViewer(
-                                    minScale: 0.5,
-                                    maxScale: 4.0,
-                                    child: Image.network(product.imageUrl, fit: BoxFit.contain),
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 40,
-                                  right: 20,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                    onPressed: () => Navigator.pop(context),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 40,
-                                  left: 0,
-                                  right: 0,
-                                  child: Center(
-                                    child: Text(
-                                      product.name,
-                                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (context) => ProductDetailsPage(product: product),
+                      ));
                     },
                     child: Container(
                       color: const Color(0xFFF5F5F5),
@@ -571,6 +562,28 @@ class _HomeContentState extends State<HomeContent> {
                     }
                   ),
                 ),
+                Positioned(
+                  top: 50,
+                  right: 10,
+                  child: GestureDetector(
+                    onTap: () {
+                      final String shareText = 'Check out ${product.name} for ₹${product.price} at Shopidoe App!\n\nhttps://shopidoe.app/product/${product.id}';
+                      Share.share(shareText);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.share_outlined,
+                        size: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -589,7 +602,7 @@ class _HomeContentState extends State<HomeContent> {
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF2D2D2D),
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (product.description.isNotEmpty) ...[
@@ -736,137 +749,133 @@ class _HomeContentState extends State<HomeContent> {
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         color: primaryColor,
-        child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            // Greeting
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Text(
-                'Good Morning, $_userName!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: primaryColor, width: 1.5),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  decoration: InputDecoration(
-                    hintText: 'Search for stationery, cosmetics...',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
-                    suffixIcon: IconButton(
-                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
-                      onPressed: _listen,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (_searchQuery.isEmpty)
-              const BannerCarousel(),
-            const SizedBox(height: 32),
-            // Curated Section Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _searchQuery.isEmpty ? 'Curated For You' : 'Search Results',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF2D2D2D)),
-                  ),
-                  if (_searchQuery.isEmpty)
-                    Text(
-                      'View All',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryColor),
+                  const SizedBox(height: 20),
+                  // Greeting
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Text(
+                      '${_getGreeting()}, $_userName!',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Search Bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: primaryColor, width: 1.5),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() => _searchQuery = value),
+                        decoration: InputDecoration(
+                          hintText: 'Search for stationery, cosmetics...',
+                          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
+                          suffixIcon: IconButton(
+                            icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                            onPressed: _listen,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_searchQuery.isEmpty)
+                    const BannerCarousel(),
+                  const SizedBox(height: 32),
+                  // Curated Section Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _searchQuery.isEmpty ? 'Curated For You' : 'Search Results',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF2D2D2D)),
+                        ),
+                        if (_searchQuery.isEmpty)
+                          Text(
+                            'View All',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryColor),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('products').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return const SliverToBoxAdapter(child: Center(child: Text('Error loading products')));
+                if (snapshot.connectionState == ConnectionState.waiting) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
 
-            // Product Grid
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('products').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) return const Center(child: Text('Error loading products'));
-                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                List<Product> products = snapshot.data!.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
+                products.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-                  List<Product> products = snapshot.data!.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
-                  products.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                // Apply search filter
+                if (_searchQuery.isNotEmpty) {
+                  products = products.where((p) => 
+                    p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
+                    p.category.toLowerCase().contains(_searchQuery.toLowerCase())
+                  ).toList();
+                }
 
-                  // Apply search filter
-                  if (_searchQuery.isNotEmpty) {
-                    products = products.where((p) => 
-                      p.name.toLowerCase().contains(_searchQuery.toLowerCase()) || 
-                      p.category.toLowerCase().contains(_searchQuery.toLowerCase())
-                    ).toList();
-                  }
-
-                  if (products.isEmpty) {
-                    return Center(child: Text(_searchQuery.isEmpty ? 'No products available' : 'No products found matching "$_searchQuery"'));
-                  }
-
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final double itemWidth = (constraints.maxWidth - 16) / 2;
-                      // Dynamic aspect ratio: taller on narrow screens, wider on larger ones
-                      // We aim for a balance that fits image (flex 5) and info (flex 6) without excess gap
-                      final double screenHeight = MediaQuery.of(context).size.height;
-                      final double screenWidth = MediaQuery.of(context).size.width;
-                      
-                      // Calculate a ratio that works for both short and tall phones
-                      // 0.52 is a better baseline to prevent button overflow
-                      double ratio = 0.52; 
-                      if (screenWidth / screenHeight > 0.5) {
-                        // For wider/shorter screens (like tablets or older phones), use a slightly wider ratio
-                        ratio = 0.58;
-                      }
-
-                      return GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        childAspectRatio: ratio,
-                        mainAxisSpacing: 20,
-                        crossAxisSpacing: 16,
-                        children: products.map((p) => _buildProductCard(context, p)).toList(),
-                      );
-                    }
+                if (products.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: Center(child: Text(_searchQuery.isEmpty ? 'No products available' : 'No products found matching "$_searchQuery"'))
                   );
-                },
-              ),
+                }
+
+                final double screenHeight = MediaQuery.of(context).size.height;
+                final double screenWidth = MediaQuery.of(context).size.width;
+                double ratio = 0.46; 
+                if (screenWidth / screenHeight > 0.5) {
+                  ratio = 0.52;
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: ratio,
+                      mainAxisSpacing: 20,
+                      crossAxisSpacing: 16,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _buildProductCard(context, products[index]),
+                      childCount: products.length,
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 40),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class BannerCarousel extends StatefulWidget {

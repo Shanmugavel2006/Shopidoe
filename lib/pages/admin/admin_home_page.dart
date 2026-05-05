@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../user/login_page.dart';
@@ -12,6 +13,7 @@ import 'admin_analysis_view.dart';
 import 'admin_history_view.dart';
 import 'admin_settings_view.dart';
 import 'admin_banners_view.dart';
+import 'admin_reviews_view.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -122,6 +124,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       case 7: return 'Activity History';
       case 8: return 'Admin Settings';
       case 9: return 'Banner Management';
+      case 10: return 'Product Reviews';
       default: return 'Shopidoe Admin';
     }
   }
@@ -129,8 +132,33 @@ class _AdminHomePageState extends State<AdminHomePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      key: _scaffoldKey,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit App'),
+            content: const Text('Are you sure you want to exit?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Yes', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        );
+        if (shouldPop == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
@@ -246,6 +274,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           _buildDrawerItem('History', Icons.history, isSelected: _selectedIndex == 7, index: 7),
                           _buildDrawerItem('Users', Icons.group_outlined, isSelected: _selectedIndex == 4, index: 4, badgeCount: userCount),
                           _buildDrawerItem('Banners', Icons.view_carousel_outlined, isSelected: _selectedIndex == 9, index: 9),
+                          _buildDrawerItem('Reviews', Icons.star_outline, isSelected: _selectedIndex == 10, index: 10),
                           _buildDrawerItem('Settings', Icons.settings_outlined, isSelected: _selectedIndex == 8, index: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -283,6 +312,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           AdminHistoryView(),
           AdminSettingsView(),
           const AdminBannersView(),
+          const AdminReviewsView(),
         ],
       ),
       floatingActionButton: _selectedIndex == 3 
@@ -343,6 +373,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           );
         }
       ),
+    ),
     );
   }
 }

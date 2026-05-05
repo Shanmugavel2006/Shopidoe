@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
+import 'product_details_page.dart';
 
 class WishlistPage extends StatelessWidget {
   final VoidCallback onBack;
@@ -101,32 +102,9 @@ class WishlistPage extends StatelessWidget {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  if (variantProduct.imageUrl.isNotEmpty) {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog.fullscreen(
-                                        backgroundColor: Colors.black,
-                                        child: Stack(
-                                          children: [
-                                            Center(
-                                              child: InteractiveViewer(
-                                                minScale: 0.5,
-                                                maxScale: 4.0,
-                                                child: Image.network(variantProduct.imageUrl, fit: BoxFit.contain),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 40, right: 20,
-                                              child: IconButton(
-                                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                                onPressed: () => Navigator.pop(context),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (context) => ProductDetailsPage(product: variantProduct),
+                                  ));
                                 },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
@@ -311,13 +289,20 @@ class WishlistPage extends StatelessWidget {
                         children: [
                           ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                            child: Container(
-                              width: double.infinity,
-                              color: isDark ? Colors.grey[900] : Colors.grey[50],
-                              child: item.imageUrl.isNotEmpty
-                                  ? Image.network(item.imageUrl, fit: BoxFit.cover,
-                                      errorBuilder: (c, e, s) => Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]))
-                                  : Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(context, MaterialPageRoute(
+                                  builder: (context) => ProductDetailsPage(product: item),
+                                ));
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                color: isDark ? Colors.grey[900] : Colors.grey[50],
+                                child: item.imageUrl.isNotEmpty
+                                    ? Image.network(item.imageUrl, fit: BoxFit.cover,
+                                        errorBuilder: (c, e, s) => Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]))
+                                    : Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]),
+                              ),
                             ),
                           ),
                           // Remove from wishlist

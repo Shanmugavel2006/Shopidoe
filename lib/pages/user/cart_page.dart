@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
+import 'product_details_page.dart';
 
 class CartPage extends StatelessWidget {
   final VoidCallback onBack;
@@ -67,23 +68,30 @@ class CartPage extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[900] : Colors.grey[50],
-                              borderRadius: BorderRadius.circular(12),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (context) => ProductDetailsPage(product: item),
+                              ));
+                            },
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.grey[900] : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: item.imageUrl.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.network(
+                                        item.imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_outlined, color: Colors.grey),
+                                      ),
+                                    )
+                                  : const Icon(Icons.image_outlined, color: Colors.grey),
                             ),
-                            child: item.imageUrl.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      item.imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_outlined, color: Colors.grey),
-                                    ),
-                                  )
-                                : const Icon(Icons.image_outlined, color: Colors.grey),
                           ),
                           const SizedBox(width: 16),
                           Expanded(

@@ -41,29 +41,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     setState(() => _isLoading = true);
     
     try {
-      // MASTER BYPASS: Check for specific admin credentials
-      if (email.toLowerCase() == 'shopidoeadmin@gmail.com' && password == 'shopidoe123') {
-        UserCredential userCredential;
-        try {
-          userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-        } catch (e) {
-          userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
-        }
-        
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-          'email': email,
-          'role': 'admin',
-          'name': 'Master Admin',
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        if (mounted) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminHomePage()));
-        }
-        return;
-      }
-
-      // 1. Attempt to Authenticate with Firebase
       UserCredential userCredential;
       try {
         userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -71,24 +48,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
           password: password,
         );
       } on FirebaseAuthException catch (e) {
-        // Auto-create for default admin emails if they don't exist
-        final List<String> autoCreateEmails = ['admin@gmail.com', 'shopidoeadmin@gmail.com'];
-        
-        if (e.code == 'user-not-found' && autoCreateEmails.contains(email.toLowerCase())) {
-          userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-          // Initialize Firestore doc for new admin
-          await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
-            'email': email,
-            'role': 'admin',
-            'name': 'Administrator',
-            'createdAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        } else {
-          rethrow;
-        }
+        rethrow;
       }
 
       // 2. Verify admin role in Firestore
@@ -96,17 +56,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       final userDoc = await userDocRef.get();
 
       bool isAdmin = userDoc.exists && userDoc.data()?['role'] == 'admin';
-
-      // Auto-upgrade to admin if it's the default email and it wasn't an admin yet
-      if (!isAdmin && email.toLowerCase() == 'admin@gmail.com') {
-        await userDocRef.set({
-          'role': 'admin',
-          'email': email,
-          'name': 'Administrator',
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        isAdmin = true;
-      }
 
       if (isAdmin) {
         if (mounted) {
@@ -126,10 +75,9 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         String title = 'Login Failed';
         String message = e.message ?? 'An error occurred';
         
-        final List<String> autoCreateEmails = ['admin@gmail.com', 'shopidoeadmin@gmail.com'];
-        if ((e.code == 'wrong-password' || e.code == 'invalid-credential') && autoCreateEmails.contains(email.toLowerCase())) {
-          title = 'Account Already Exists';
-          message = 'The admin account "$email" already exists with a different password. \n\nPlease use the "Forgot?" link to reset your password if you don\'t remember it.';
+        if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          title = 'Wrong Credentials';
+          message = 'The email or password you entered is incorrect.';
         }
         
         _showError(title, message);

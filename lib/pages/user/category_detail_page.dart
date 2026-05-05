@@ -4,6 +4,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
+import 'product_details_page.dart';
 
 class CategoryDetailPage extends StatefulWidget {
   final String categoryName;
@@ -144,32 +145,9 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  if (variantProduct.imageUrl.isNotEmpty) {
-                                    showDialog(
-                                      context: context,
-                                      builder: (context) => Dialog.fullscreen(
-                                        backgroundColor: Colors.black,
-                                        child: Stack(
-                                          children: [
-                                            Center(
-                                              child: InteractiveViewer(
-                                                minScale: 0.5,
-                                                maxScale: 4.0,
-                                                child: Image.network(variantProduct.imageUrl, fit: BoxFit.contain),
-                                              ),
-                                            ),
-                                            Positioned(
-                                              top: 40, right: 20,
-                                              child: IconButton(
-                                                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                                onPressed: () => Navigator.pop(context),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (context) => ProductDetailsPage(product: variantProduct),
+                                  ));
                                 },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
@@ -398,7 +376,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: (MediaQuery.of(context).size.width / MediaQuery.of(context).size.height) > 0.5 ? 0.65 : 0.55,
+                    childAspectRatio: (MediaQuery.of(context).size.width / MediaQuery.of(context).size.height) > 0.5 ? 0.6 : 0.48,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                   ),
@@ -437,33 +415,9 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
               children: [
                 GestureDetector(
                   onTap: () {
-                    if (product.imageUrl.isNotEmpty) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => Dialog.fullscreen(
-                          backgroundColor: Colors.black,
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 4.0,
-                                  child: Image.network(product.imageUrl, fit: BoxFit.contain),
-                                ),
-                              ),
-                              Positioned(
-                                top: 40,
-                                right: 20,
-                                child: IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                                  onPressed: () => Navigator.pop(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (context) => ProductDetailsPage(product: product),
+                    ));
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -555,35 +509,37 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                   SizedBox(
                     width: double.infinity,
                     height: 36,
-                    child: ElevatedButton(
-                      onPressed: () => _showVariantPicker(context, product, buyNow: true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        product.variants.isNotEmpty ? 'Buy Now ▾' : 'Buy Now',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 36,
-                    child: OutlinedButton(
-                      onPressed: () => _showVariantPicker(context, product, buyNow: false),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primaryColor.withOpacity(0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Text(
-                        product.variants.isNotEmpty ? 'Add to Cart ▾' : 'Add to Cart',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryColor),
+                      child: ElevatedButton(
+                        onPressed: () => _showVariantPicker(context, product, buyNow: true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Text(
+                          product.variants.isNotEmpty ? 'Buy Now ▾' : 'Buy Now',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 32,
+                      child: OutlinedButton(
+                        onPressed: () => _showVariantPicker(context, product, buyNow: false),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: primaryColor.withOpacity(0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Text(
+                          product.variants.isNotEmpty ? 'Add to Cart ▾' : 'Add to Cart',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryColor),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

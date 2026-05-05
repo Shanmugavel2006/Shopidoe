@@ -2,8 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-class AdminPaymentsView extends StatelessWidget {
+class AdminPaymentsView extends StatefulWidget {
   const AdminPaymentsView({super.key});
+
+  @override
+  State<AdminPaymentsView> createState() => _AdminPaymentsViewState();
+}
+
+class _AdminPaymentsViewState extends State<AdminPaymentsView> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _showTransactionDetails(BuildContext context, String id, Map<String, dynamic> data) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -329,10 +343,21 @@ class AdminPaymentsView extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
                     decoration: InputDecoration(
                       hintText: 'Search by customer or payment...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
                       border: InputBorder.none,
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -348,8 +373,20 @@ class AdminPaymentsView extends StatelessWidget {
               if (snapshot.hasError) return const Center(child: Text('Something went wrong'));
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-              final orders = snapshot.data?.docs ?? [];
-              if (orders.isEmpty) return const Center(child: Text('No payment transactions found'));
+              var orders = snapshot.data?.docs ?? [];
+              
+              if (_searchQuery.isNotEmpty) {
+                final query = _searchQuery.toLowerCase();
+                orders = orders.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['userName'] ?? '').toString().toLowerCase();
+                  final method = (data['paymentMethod'] ?? '').toString().toLowerCase();
+                  final id = doc.id.toLowerCase();
+                  return name.contains(query) || method.contains(query) || id.contains(query);
+                }).toList();
+              }
+
+              if (orders.isEmpty) return Center(child: Text(_searchQuery.isNotEmpty ? 'No results found' : 'No payment transactions found'));
 
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
