@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
@@ -84,11 +85,12 @@ class CartPage extends StatelessWidget {
                               child: item.imageUrl.isNotEmpty
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        item.imageUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_outlined, color: Colors.grey),
-                                      ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: item.imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(color: isDark ? Colors.grey[900] : Colors.grey[50]),
+                                    errorWidget: (context, url, error) => const Icon(Icons.image_outlined, color: Colors.grey),
+                                  ),
                                     )
                                   : const Icon(Icons.image_outlined, color: Colors.grey),
                             ),

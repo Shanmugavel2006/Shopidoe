@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
@@ -18,6 +19,14 @@ class ProductDetailsPage extends StatefulWidget {
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final Color primaryColor = const Color(0xFFB10044);
   int _currentImageIndex = 0;
+  final PageController _pageController = PageController();
+  bool _isZoomed = false;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   // We consider variants as images for the carousel if they have images, 
   // plus the main product image.
@@ -238,7 +247,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   width: 80, height: 80,
                                   color: Colors.grey[100],
                                   child: variantProduct.imageUrl.isNotEmpty
-                                      ? Image.network(variantProduct.imageUrl, fit: BoxFit.cover)
+                                      ? CachedNetworkImage(
+                                          imageUrl: variantProduct.imageUrl,
+                                          fit: BoxFit.cover,
+                                          placeholder: (context, url) => Container(color: Colors.grey[100]),
+                                          errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[400], size: 30),
+                                        )
                                       : Icon(Icons.image_outlined, color: Colors.grey[400], size: 30),
                                 ),
                               ),
@@ -351,10 +365,47 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 children: [
                   if (images.isNotEmpty)
                     PageView.builder(
+                      controller: _pageController,
                       itemCount: images.length,
+                      physics: _isZoomed ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(),
                       onPageChanged: (index) => setState(() => _currentImageIndex = index),
                       itemBuilder: (context, index) {
-                        return Image.network(images[index], fit: BoxFit.contain);
+                        return InteractiveViewer(
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          onInteractionStart: (_) => setState(() => _isZoomed = true),
+                          onInteractionEnd: (details) {
+                             // onInteractionEnd doesn't have scale, so we check the matrix 
+                             // if we really need to, but for now we just rely on onInteractionUpdate 
+                             // if we had a TransformationController.
+                             // For simplicity, we can reset if pointerCount is 0.
+                             if (details.pointerCount == 0) {
+                               setState(() => _isZoomed = false);
+                             }
+                          },
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullScreenImageViewer(
+                                    images: images,
+                                    initialIndex: index,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Hero(
+                              tag: 'product_image_$index',
+                              child: CachedNetworkImage(
+                                imageUrl: images[index],
+                                fit: BoxFit.contain,
+                                placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                                errorWidget: (context, url, error) => const Icon(Icons.image_not_supported, size: 50),
+                              ),
+                            ),
+                          ),
+                        );
                       },
                     )
                   else
@@ -416,7 +467,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         child: IconButton(
                           icon: const Icon(Icons.chevron_left, color: Colors.black),
                           onPressed: () {
-                            // PageController needed for arrows, keeping it simple for now or omitted.
+                            if (_currentImageIndex > 0) {
+                              _pageController.animateToPage(
+                                _currentImageIndex - 1,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
                           },
                         ),
                       ),
@@ -428,7 +485,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         backgroundColor: Colors.white.withOpacity(0.8),
                         child: IconButton(
                           icon: const Icon(Icons.chevron_right, color: Colors.black),
-                          onPressed: () {},
+                          onPressed: () {
+                            if (_currentImageIndex < images.length - 1) {
+                              _pageController.animateToPage(
+                                _currentImageIndex + 1,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          },
                         ),
                       ),
                     ),
@@ -599,7 +664,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         child: ClipRRect(
                                           borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                                           child: p.imageUrl.isNotEmpty 
-                                            ? Image.network(p.imageUrl, fit: BoxFit.cover, width: double.infinity)
+                                            ? CachedNetworkImage(
+                                                imageUrl: p.imageUrl,
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                placeholder: (context, url) => Container(color: Colors.grey[100]),
+                                                errorWidget: (context, url, error) => const Center(child: Icon(Icons.image_not_supported)),
+                                              )
                                             : Container(color: Colors.grey[200], child: const Center(child: Icon(Icons.image))),
                                         ),
                                       ),
@@ -650,5 +721,126 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ),
       ),
     );
+  }
+}
+
+class FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late PageController _controller;
+  final TransformationController _transformationController = TransformationController();
+  TapDownDetails? _doubleTapDetails;
+  bool _canScroll = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  void _handleDoubleTap() {
+    if (_transformationController.value != Matrix4.identity()) {
+      _transformationController.value = Matrix4.identity();
+      setState(() => _canScroll = true);
+    } else {
+      final position = _doubleTapDetails!.localPosition;
+      _transformationController.value = Matrix4.identity()
+        ..translate(-position.dx * 1.5, -position.dy * 1.5)
+        ..scale(2.5);
+      setState(() => _canScroll = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.images.length,
+            physics: _canScroll ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onDoubleTapDown: (details) => _doubleTapDetails = details,
+                onDoubleTap: _handleDoubleTap,
+                child: InteractiveViewer(
+                  transformationController: _transformationController,
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  onInteractionStart: (_) => setState(() => _canScroll = false),
+                  onInteractionEnd: (details) {
+                    if (_transformationController.value.getMaxScaleOnAxis() <= 1.0) {
+                      setState(() => _canScroll = true);
+                    }
+                  },
+                  child: Center(
+                    child: Hero(
+                      tag: 'product_image_$index',
+                      child: CachedNetworkImage(
+                        imageUrl: widget.images[index],
+                        fit: BoxFit.contain,
+                        width: MediaQuery.of(context).size.width,
+                        placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                        errorWidget: (context, url, error) => const Icon(Icons.image_not_supported, color: Colors.white, size: 50),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            right: 20,
+            child: CircleAvatar(
+              backgroundColor: Colors.black54,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Double tap or pinch to zoom',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _transformationController.dispose();
+    super.dispose();
   }
 }

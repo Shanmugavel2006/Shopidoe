@@ -17,6 +17,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:share_plus/share_plus.dart';
 import 'package:app_links/app_links.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
+
+import '../../main.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -29,6 +34,7 @@ class _UserHomePageState extends State<UserHomePage> {
   int _selectedIndex = 0;
   String? _selectedCategory;
   final Color primaryColor = const Color(0xFFB10044);
+  DateTime? _lastPressedAt;
 
   Widget _buildCategoryTab() {
     if (_selectedCategory == null) {
@@ -62,32 +68,72 @@ class _UserHomePageState extends State<UserHomePage> {
       ProfilePage(onBack: () => setState(() => _selectedIndex = 0)),
     ];
 
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        final shouldPop = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Exit App'),
-            content: const Text('Are you sure you want to exit?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('No'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Yes', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        );
-        if (shouldPop == true) {
-          SystemNavigator.pop();
-        }
-      },
-      child: Scaffold(
+    return PortalTheme(
+      notifier: userThemeNotifier,
+      child: Builder(
+        builder: (context) {
+          return PopScope(
+            canPop: false,
+            onPopInvoked: (didPop) async {
+              if (didPop) return;
+
+              // 1. If the Navigator can pop (a real page was pushed), pop it
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+                return;
+              }
+
+              // 2. If we are in Category Detail, go back to Category list
+              if (_selectedIndex == 1 && _selectedCategory != null) {
+                setState(() => _selectedCategory = null);
+                return;
+              }
+
+              // 3. If we are on any other tab, go back to Home tab
+              if (_selectedIndex != 0) {
+                setState(() => _selectedIndex = 0);
+                return;
+              }
+
+              // 4. Otherwise, handle double-press to exit logic
+              final now = DateTime.now();
+              final backButtonHasNotBeenPressedRecently = _lastPressedAt == null || 
+                  now.difference(_lastPressedAt!) > const Duration(seconds: 2);
+
+              if (backButtonHasNotBeenPressedRecently) {
+                _lastPressedAt = now;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Press back again to exit'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Exit App'),
+                  content: const Text('Are you sure you want to exit?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('No'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (shouldPop == true) {
+                SystemNavigator.pop();
+              }
+            },
+            child: Scaffold(
         body: _pages[_selectedIndex],
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,
@@ -105,6 +151,9 @@ class _UserHomePageState extends State<UserHomePage> {
             BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'ACCOUNT'),
           ],
         ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -117,13 +166,12 @@ class HomeContent extends StatefulWidget {
   State<HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> {
+class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<HomeContent> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
   String _userName = 'User';
+  List<String> _productNames = [];
 
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
@@ -131,9 +179,25 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
     _fetchUserName();
+    _fetchProductNames();
     _initAppLinks();
+  }
+
+  Future<void> _fetchProductNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('products').get();
+      if (mounted) {
+        setState(() {
+          _productNames = snapshot.docs
+              .map((doc) => doc.get('name') as String)
+              .toSet()
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching product names: $e');
+    }
   }
 
   Future<void> _initAppLinks() async {
@@ -216,28 +280,11 @@ class _HomeContentState extends State<HomeContent> {
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
-  void _listen() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('onStatus: $val'),
-        onError: (val) => debugPrint('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            _searchController.text = val.recognizedWords;
-            _searchQuery = val.recognizedWords;
-          }),
-        );
-      } else {
-        setState(() => _isListening = false);
-        _speech.stop();
-      }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
-    }
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
   }
 
 
@@ -351,8 +398,13 @@ class _HomeContentState extends State<HomeContent> {
                                     width: 100, height: 100,
                                     color: Colors.grey[100],
                                     child: variantProduct.imageUrl.isNotEmpty
-                                        ? Image.network(variantProduct.imageUrl, fit: BoxFit.cover)
-                                        : Icon(Icons.image_outlined, color: Colors.grey[400], size: 40),
+                                        ? CachedNetworkImage(
+                                            imageUrl: variantProduct.imageUrl,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(color: Colors.grey[100]),
+                                            errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[400], size: 30),
+                                          )
+                                        : Icon(Icons.image_outlined, color: Colors.grey[400], size: 30),
                                   ),
                                 ),
                               ),
@@ -494,11 +546,12 @@ class _HomeContentState extends State<HomeContent> {
                       width: double.infinity,
                       child: Center(
                         child: product.imageUrl.isNotEmpty
-                          ? Image.network(
-                              product.imageUrl,
+                          ? CachedNetworkImage(
+                              imageUrl: product.imageUrl,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (context, error, stackTrace) => Icon(
+                              placeholder: (context, url) => Container(color: const Color(0xFFF5F5F5)),
+                              errorWidget: (context, url, error) => Icon(
                                 product.isAvailable ? Icons.shopping_bag_outlined : Icons.do_not_disturb_on_outlined,
                                 size: 50,
                                 color: Colors.grey[300],
@@ -788,7 +841,7 @@ class _HomeContentState extends State<HomeContent> {
                           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                           prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                           suffixIcon: IconButton(
-                            icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                            icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
                             onPressed: _listen,
                           ),
                           border: InputBorder.none,
@@ -797,6 +850,45 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
                   ),
+                  if (_searchQuery.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : SearchSuggestionService.userSuggestions)
+                            .map((suggestion) => ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.history, size: 20, color: Colors.grey),
+                                  title: Text(
+                                    suggestion,
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                                  onTap: () {
+                                    setState(() {
+                                      _searchController.text = suggestion;
+                                      _searchQuery = suggestion;
+                                    });
+                                  },
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   if (_searchQuery.isEmpty)
                     const BannerCarousel(),
@@ -954,10 +1046,11 @@ class _BannerCarouselState extends State<BannerCarousel> {
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(20),
-                      child: Image.network(
-                        imageUrl,
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
+                        placeholder: (context, url) => Container(color: Colors.grey[200]),
+                        errorWidget: (context, url, error) => Container(
                           color: Colors.grey[200],
                           child: const Icon(Icons.image_not_supported),
                         ),

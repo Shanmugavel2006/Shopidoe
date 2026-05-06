@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/cloudinary_service.dart';
 
 class AdminBannersView extends StatefulWidget {
@@ -157,12 +158,18 @@ class _AdminBannersViewState extends State<AdminBannersView> {
                               children: [
                                 ClipRRect(
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                                  child: Image.network(
-                                    imageUrl,
+                                  child: CachedNetworkImage(
+                                    imageUrl: imageUrl,
                                     width: double.infinity,
                                     height: 180,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
+                                    placeholder: (context, url) => Container(
+                                      width: double.infinity,
+                                      height: 180,
+                                      color: Colors.grey[200],
+                                      child: const Center(child: CircularProgressIndicator()),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
                                       width: double.infinity,
                                       height: 180,
                                       color: Colors.grey[200],

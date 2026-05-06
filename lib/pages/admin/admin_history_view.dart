@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../services/speech_service.dart';
 
 class AdminHistoryView extends StatefulWidget {
   const AdminHistoryView({super.key});
@@ -7,8 +9,23 @@ class AdminHistoryView extends StatefulWidget {
   State<AdminHistoryView> createState() => _AdminHistoryViewState();
 }
 
-class _AdminHistoryViewState extends State<AdminHistoryView> {
+class _AdminHistoryViewState extends State<AdminHistoryView> with SpeechRecognitionMixin<AdminHistoryView> {
   final Color primaryColor = const Color(0xFFB10044);
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    initSpeech();
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
+  }
 
   // Mocked data converted to a mutable list
   List<Map<String, dynamic>> _historyItems = [
@@ -111,6 +128,13 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
     bool allSelected = _historyItems.isNotEmpty && _historyItems.every((item) => item['selected'] == true);
     bool anySelected = _historyItems.any((item) => item['selected'] == true);
 
+    final filteredItems = _historyItems.where((item) {
+      final message = item['message'].toString().toLowerCase();
+      final time = item['time'].toString().toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return message.contains(query) || time.contains(query);
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,6 +175,41 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
           padding: const EdgeInsets.only(left: 24.0),
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
         ),
+        const SizedBox(height: 24),
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.search, color: Colors.grey[400]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Search history...',
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      border: InputBorder.none,
+                      suffixIcon: IconButton(
+                        icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                        onPressed: _listen,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         if (_isSelectionMode && _historyItems.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -187,10 +246,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 5))],
             ),
-            child: _historyItems.isEmpty 
+            child: filteredItems.isEmpty 
               ? Center(
                   child: Text(
-                    'No history available',
+                    _searchQuery.isEmpty ? 'No history available' : 'No matching history found',
                     style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400], fontSize: 16),
                   ),
                 )
@@ -199,10 +258,10 @@ class _AdminHistoryViewState extends State<AdminHistoryView> {
                   color: primaryColor,
                   child: ListView.separated(
                     padding: EdgeInsets.zero,
-                    itemCount: _historyItems.length,
+                    itemCount: filteredItems.length,
                     separatorBuilder: (context, index) => Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[100]),
                     itemBuilder: (context, index) {
-                      return _buildHistoryItem(context, _historyItems[index]);
+                      return _buildHistoryItem(context, filteredItems[index]);
                     },
                   ),
                 ),

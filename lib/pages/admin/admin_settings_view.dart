@@ -246,12 +246,12 @@ class _AdminSettingsViewState extends State<AdminSettingsView> {
                 const Text('Dark Mode', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 ValueListenableBuilder<ThemeMode>(
-                  valueListenable: themeNotifier,
+                  valueListenable: adminThemeNotifier,
                   builder: (_, mode, __) {
                     return Switch(
                       value: mode == ThemeMode.dark,
                       onChanged: (v) {
-                        themeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
+                        adminThemeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
                       },
                       activeColor: primaryColor,
                     );

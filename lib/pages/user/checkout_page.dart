@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import 'order_success_page.dart';
 
@@ -281,12 +282,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              item.imageUrl.isNotEmpty ? item.imageUrl : 'https://via.placeholder.com/150',
+            child: CachedNetworkImage(
+              imageUrl: item.imageUrl.isNotEmpty ? item.imageUrl : 'https://via.placeholder.com/150',
               width: 70,
               height: 70,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+              placeholder: (context, url) => Container(color: Colors.grey[200]),
+              errorWidget: (context, url, error) => Container(
                 width: 70, height: 70, color: Colors.grey[200], child: const Icon(Icons.image_not_supported),
               ),
             ),

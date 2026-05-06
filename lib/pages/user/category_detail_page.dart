@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 import 'checkout_page.dart';
 import 'product_details_page.dart';
 
@@ -15,42 +18,43 @@ class CategoryDetailPage extends StatefulWidget {
   State<CategoryDetailPage> createState() => _CategoryDetailPageState();
 }
 
-class _CategoryDetailPageState extends State<CategoryDetailPage> {
+class _CategoryDetailPageState extends State<CategoryDetailPage> with SpeechRecognitionMixin<CategoryDetailPage> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
   bool _isSearchExpanded = false;
+  List<String> _productNames = [];
 
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    _fetchProductNames();
   }
 
-  void _listen() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('onStatus: $val'),
-        onError: (val) => debugPrint('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            _searchController.text = val.recognizedWords;
-            _searchQuery = val.recognizedWords;
-          }),
-        );
-      } else {
-        setState(() => _isListening = false);
-        _speech.stop();
+  Future<void> _fetchProductNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .where('category', isEqualTo: widget.categoryName)
+          .get();
+      if (mounted) {
+        setState(() {
+          _productNames = snapshot.docs
+              .map((doc) => doc.get('name') as String)
+              .toSet()
+              .toList();
+        });
       }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
+    } catch (e) {
+      debugPrint('Error fetching product names: $e');
     }
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
   }
 
   void _showVariantPicker(BuildContext context, Product product, {required bool buyNow}) {
@@ -155,7 +159,12 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                                     width: 100, height: 100,
                                     color: Colors.grey[100],
                                     child: variantProduct.imageUrl.isNotEmpty
-                                        ? Image.network(variantProduct.imageUrl, fit: BoxFit.cover)
+                                        ? CachedNetworkImage(
+                                            imageUrl: variantProduct.imageUrl,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(color: Colors.grey[100]),
+                                            errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[400], size: 40),
+                                          )
                                         : Icon(Icons.image_outlined, color: Colors.grey[400], size: 40),
                                   ),
                                 ),
@@ -321,12 +330,51 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
                     prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                     suffixIcon: IconButton(
-                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                      icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
                       onPressed: _listen,
                     ),
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 15),
                   ),
+                ),
+              ),
+            ),
+          if (_isSearchExpanded && _searchQuery.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : SearchSuggestionService.userSuggestions)
+                      .map((suggestion) => ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                            title: Text(
+                              suggestion,
+                              style: TextStyle(
+                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                            onTap: () {
+                              setState(() {
+                                _searchController.text = suggestion;
+                                _searchQuery = suggestion;
+                              });
+                            },
+                          ))
+                      .toList(),
                 ),
               ),
             ),
@@ -427,11 +475,12 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                     width: double.infinity,
                     child: Center(
                       child: product.imageUrl.isNotEmpty
-                          ? Image.network(
-                              product.imageUrl,
+                          ? CachedNetworkImage(
+                              imageUrl: product.imageUrl,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (context, error, stackTrace) => Icon(Icons.image_outlined, size: 50, color: Colors.grey[300]),
+                              placeholder: (context, url) => Container(color: Colors.grey[100]),
+                              errorWidget: (context, url, error) => Icon(Icons.image_outlined, size: 50, color: Colors.grey[300]),
                             )
                           : Icon(Icons.image_outlined, size: 50, color: Colors.grey[300]),
                     ),

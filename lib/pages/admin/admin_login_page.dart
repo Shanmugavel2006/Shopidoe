@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_home_page.dart';
-import 'admin_forgot_password_page.dart';
+
+import '../../main.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -104,15 +105,19 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+    return PortalTheme(
+      notifier: adminThemeNotifier,
+      child: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 0),
                 // Logo Section
@@ -208,31 +213,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Password',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.grey[300] : Colors.grey[800],
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const AdminForgotPasswordPage()),
-                            );
-                          },
-                          child: Text(
-                            'Forgot?',
-                            style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Password',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.grey[300] : Colors.grey[800],
+                      ),
                     ),
+                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
@@ -321,62 +310,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _recoverAdminEmail,
-                  child: Text(
-                    'Forgot Admin Email?', 
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13, decoration: TextDecoration.underline),
-                  ),
-                ),
                 const SizedBox(height: 40),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Future<void> _recoverAdminEmail() async {
-    setState(() => _isLoading = true);
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'admin')
-          .get();
-
-      if (mounted) {
-        if (snapshot.docs.isEmpty) {
-          _showError('No Admins Found', 'There are no accounts with administrator privileges in the database.');
-        } else {
-          String emails = snapshot.docs.map((doc) => doc.get('email')).join('\n');
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Admin Emails Found'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('The following emails have admin access:'),
-                  const SizedBox(height: 16),
-                  Text(emails, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFB10044))),
-                  const SizedBox(height: 16),
-                  const Text('Please use one of these to reset your password.', style: TextStyle(fontSize: 12)),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-              ],
-            ),
           );
-        }
-      }
-    } catch (e) {
-      if (mounted) _showError('Recovery Error', e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+        },
+      ),
+    );
   }
 }

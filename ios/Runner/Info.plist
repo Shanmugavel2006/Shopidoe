@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition is required to search for products using voice.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is required to search for products using voice.</string>
 </dict>
 </plist>

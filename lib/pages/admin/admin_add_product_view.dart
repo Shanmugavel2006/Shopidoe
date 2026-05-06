@@ -2,9 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/cloudinary_service.dart';
 import '../../models/product_model.dart';
 import '../../services/category_utils.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../services/speech_service.dart';
 
 class AdminAddProductView extends StatefulWidget {
   final Product? product;
@@ -14,7 +17,7 @@ class AdminAddProductView extends StatefulWidget {
   State<AdminAddProductView> createState() => _AdminAddProductViewState();
 }
 
-class _AdminAddProductViewState extends State<AdminAddProductView> {
+class _AdminAddProductViewState extends State<AdminAddProductView> with SpeechRecognitionMixin<AdminAddProductView> {
   final Color primaryColor = const Color(0xFFB10044);
   bool _isInStock = true;
   final List<Map<String, dynamic>> _variants = [];
@@ -34,6 +37,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
   @override
   void initState() {
     super.initState();
+    initSpeech();
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _priceController.text = widget.product!.price;
@@ -49,6 +53,13 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
     _categoryController.addListener(() {
       setState(() {}); // Update icon preview as user types
     });
+  }
+
+  void _listenDescription() {
+    toggleListening(
+      controller: _descriptionController,
+      onResult: (text) => setState(() {}), // descriptionController handles the text
+    );
   }
 
   Future<void> _fetchCategories() async {
@@ -312,7 +323,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
     );
   }
 
-  Widget _buildTextField(String label, String hint, {bool isNumber = false, int maxLines = 1, TextEditingController? controller}) {
+  Widget _buildTextField(String label, String hint, {bool isNumber = false, int maxLines = 1, TextEditingController? controller, Widget? suffixIcon}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,6 +347,7 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
             fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.all(16),
+            suffixIcon: suffixIcon,
           ),
         ),
       ],
@@ -452,7 +464,10 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isDark ? Colors.grey[400] : const Color(0xFF8B4513), letterSpacing: 1),
           ),
           const SizedBox(height: 12),
-          _buildTextField('', 'Enter detailed description (e.g. Product brown color...)', maxLines: 3, controller: _descriptionController),
+          _buildTextField('', 'Enter detailed description (e.g. Product brown color...)', maxLines: 3, controller: _descriptionController, suffixIcon: IconButton(
+            icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+            onPressed: _listenDescription,
+          )),
           const SizedBox(height: 32),
           
           Text(
@@ -537,7 +552,12 @@ class _AdminAddProductViewState extends State<AdminAddProductView> {
                         height: 50,
                         color: isDark ? Colors.grey[900] : Colors.grey[100],
                         child: (v['imageUrl'] != null && v['imageUrl'].isNotEmpty)
-                            ? Image.network(v['imageUrl'], fit: BoxFit.cover)
+                            ? CachedNetworkImage(
+                                imageUrl: v['imageUrl'],
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(color: isDark ? Colors.grey[900] : Colors.grey[100]),
+                                errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[500]),
+                              )
                             : Icon(Icons.image_outlined, color: Colors.grey[500]),
                       ),
                     ),

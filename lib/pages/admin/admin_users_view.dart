@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 
-class AdminUsersView extends StatelessWidget {
+class AdminUsersView extends StatefulWidget {
   const AdminUsersView({super.key});
 
+  @override
+  State<AdminUsersView> createState() => _AdminUsersViewState();
+}
+
+class _AdminUsersViewState extends State<AdminUsersView> with SpeechRecognitionMixin<AdminUsersView> {
   final Color primaryColor = const Color(0xFFB10044);
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    initSpeech();
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
+  }
 
   void _showUserDetails(BuildContext context, Map<String, dynamic> userData) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -198,6 +221,80 @@ class AdminUsersView extends StatelessWidget {
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
         ),
         const SizedBox(height: 24),
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.search, color: Colors.grey[400]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Search users by name or phone...',
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      border: InputBorder.none,
+                      suffixIcon: IconButton(
+                        icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                        onPressed: _listen,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_searchQuery.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, ['New Users', 'Active', 'Blocked', 'Recently Joined'])
+                  .map((suggestion) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                        title: Text(
+                          suggestion,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = suggestion;
+                            _searchQuery = suggestion;
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
+        const SizedBox(height: 24),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'user').snapshots(),
@@ -205,12 +302,22 @@ class AdminUsersView extends StatelessWidget {
               if (snapshot.hasError) return const Center(child: Text('Error loading users'));
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-              final users = snapshot.data?.docs ?? [];
+              var users = snapshot.data?.docs ?? [];
               
+              if (_searchQuery.isNotEmpty) {
+                final query = _searchQuery.toLowerCase();
+                users = users.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['name'] ?? '').toString().toLowerCase();
+                  final phone = (data['mobile'] ?? '').toString().toLowerCase();
+                  return name.contains(query) || phone.contains(query);
+                }).toList();
+              }
+
               if (users.isEmpty) {
                 return Center(
                   child: Text(
-                    'No users registered yet',
+                    _searchQuery.isEmpty ? 'No users registered yet' : 'No matching users found',
                     style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600])
                   )
                 );

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 
 class AdminPaymentsView extends StatefulWidget {
   const AdminPaymentsView({super.key});
@@ -9,9 +12,22 @@ class AdminPaymentsView extends StatefulWidget {
   State<AdminPaymentsView> createState() => _AdminPaymentsViewState();
 }
 
-class _AdminPaymentsViewState extends State<AdminPaymentsView> {
+class _AdminPaymentsViewState extends State<AdminPaymentsView> with SpeechRecognitionMixin<AdminPaymentsView> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    initSpeech();
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
+  }
 
   @override
   void dispose() {
@@ -349,15 +365,23 @@ class _AdminPaymentsViewState extends State<AdminPaymentsView> {
                       hintText: 'Search by customer or payment...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
                       border: InputBorder.none,
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_searchQuery.isNotEmpty)
+                            IconButton(
                               icon: const Icon(Icons.clear, size: 18),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() => _searchQuery = '');
                               },
-                            )
-                          : null,
+                            ),
+                          IconButton(
+                            icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: const Color(0xFFB10044)),
+                            onPressed: _listen,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -365,6 +389,45 @@ class _AdminPaymentsViewState extends State<AdminPaymentsView> {
             ),
           ),
         ),
+        if (_searchQuery.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, ['Success', 'Pending', 'Failed', 'Recent Transactions'])
+                  .map((suggestion) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                        title: Text(
+                          suggestion,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = suggestion;
+                            _searchQuery = suggestion;
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
         const SizedBox(height: 32),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(

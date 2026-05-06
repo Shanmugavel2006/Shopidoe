@@ -187,6 +187,18 @@ class AdminDashboardView extends StatelessWidget {
                 FirebaseFirestore.instance.collection('orders').snapshots(), 
                 Icons.payments_outlined, Colors.purple, 2
               ),
+              _buildStatCard(
+                context,
+                'Categories', 
+                FirebaseFirestore.instance.collection('categories').snapshots(), 
+                Icons.category_outlined, Colors.teal, 3
+              ),
+              _buildStatCard(
+                context,
+                'Product Reviews', 
+                FirebaseFirestore.instance.collection('reviews').snapshots(), 
+                Icons.star_outline, Colors.amber, 10
+              ),
             ],
           ),
           const SizedBox(height: 40),

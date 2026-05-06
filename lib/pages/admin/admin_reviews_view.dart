@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 
 class AdminReviewsView extends StatefulWidget {
   const AdminReviewsView({super.key});
@@ -8,8 +11,41 @@ class AdminReviewsView extends StatefulWidget {
   State<AdminReviewsView> createState() => _AdminReviewsViewState();
 }
 
-class _AdminReviewsViewState extends State<AdminReviewsView> {
+class _AdminReviewsViewState extends State<AdminReviewsView> with SpeechRecognitionMixin<AdminReviewsView> {
   final Color primaryColor = const Color(0xFFB10044);
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  List<String> _productNames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    initSpeech();
+    _fetchProductNames();
+  }
+
+  Future<void> _fetchProductNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('products').get();
+      if (mounted) {
+        setState(() {
+          _productNames = snapshot.docs
+              .map((doc) => doc.get('name') as String)
+              .toSet()
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching product names: $e');
+    }
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
+  }
 
   Widget _buildStarRating(double rating) {
     return Row(
@@ -73,6 +109,80 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
           child: Container(width: 40, height: 4, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
         ),
         const SizedBox(height: 24),
+        // Search Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.search, color: Colors.grey[400]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Search reviews by product or user...',
+                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      border: InputBorder.none,
+                      suffixIcon: IconButton(
+                        icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                        onPressed: _listen,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_searchQuery.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : ['5 Stars', '4 Stars', 'Negative Reviews', 'Most Recent'])
+                  .map((suggestion) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                        title: Text(
+                          suggestion,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = suggestion;
+                            _searchQuery = suggestion;
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
+        const SizedBox(height: 24),
         Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -88,16 +198,27 @@ class _AdminReviewsViewState extends State<AdminReviewsView> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                var reviews = snapshot.data?.docs ?? [];
+                
+                if (_searchQuery.isNotEmpty) {
+                  final query = _searchQuery.toLowerCase();
+                  reviews = reviews.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final productName = (data['productName'] ?? '').toString().toLowerCase();
+                    final userName = (data['userName'] ?? '').toString().toLowerCase();
+                    final comment = (data['comment'] ?? '').toString().toLowerCase();
+                    return productName.contains(query) || userName.contains(query) || comment.contains(query);
+                  }).toList();
+                }
+
+                if (reviews.isEmpty) {
                   return Center(
                     child: Text(
-                      'No reviews found',
+                      _searchQuery.isEmpty ? 'No reviews found' : 'No matching reviews found',
                       style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[400], fontSize: 16),
                     ),
                   );
                 }
-
-                final reviews = snapshot.data!.docs;
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),

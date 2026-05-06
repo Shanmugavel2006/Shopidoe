@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import 'user_home_page.dart';
 
@@ -78,11 +79,13 @@ class OrderSuccessPage extends StatelessWidget {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  item.imageUrl,
+                                child: CachedNetworkImage(
+                                  imageUrl: item.imageUrl,
                                   width: 80,
                                   height: 80,
                                   fit: BoxFit.cover,
+                                  placeholder: (context, url) => Container(color: Theme.of(context).cardColor),
+                                  errorWidget: (context, url, error) => const Icon(Icons.image_not_supported),
                                 ),
                               ),
                               const SizedBox(width: 16),

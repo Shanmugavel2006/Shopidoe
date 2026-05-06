@@ -6,6 +6,8 @@ import 'signup_page.dart';
 import 'user_home_page.dart';
 import 'forgot_password_page.dart';
 
+import '../../main.dart';
+
 class LoginPage extends StatefulWidget {
   final bool showAccountDeletedPopup;
   const LoginPage({super.key, this.showAccountDeletedPopup = false});
@@ -184,15 +186,19 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+    return PortalTheme(
+      notifier: userThemeNotifier,
+      child: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Scaffold(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            body: SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 0),
                 Center(
@@ -421,6 +427,9 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 }

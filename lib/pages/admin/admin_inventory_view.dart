@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 import 'admin_add_product_view.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class AdminInventoryView extends StatefulWidget {
   const AdminInventoryView({super.key});
@@ -10,10 +14,41 @@ class AdminInventoryView extends StatefulWidget {
   State<AdminInventoryView> createState() => _AdminInventoryViewState();
 }
 
-class _AdminInventoryViewState extends State<AdminInventoryView> {
+class _AdminInventoryViewState extends State<AdminInventoryView> with SpeechRecognitionMixin<AdminInventoryView> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  List<String> _productNames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    initSpeech();
+    _fetchProductNames();
+  }
+
+  Future<void> _fetchProductNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('products').get();
+      if (mounted) {
+        setState(() {
+          _productNames = snapshot.docs
+              .map((doc) => doc.get('name') as String)
+              .toSet()
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching product names: $e');
+    }
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
+  }
 
   void _showManageCategoriesDialog() {
     showDialog(
@@ -166,7 +201,12 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                                 height: 56,
                                 color: Colors.grey[100],
                                 child: (v['imageUrl'] != null && (v['imageUrl'] as String).isNotEmpty)
-                                    ? Image.network(v['imageUrl'], fit: BoxFit.cover)
+                                    ? CachedNetworkImage(
+                                        imageUrl: v['imageUrl'],
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(color: Colors.grey[100]),
+                                        errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[400]),
+                                      )
                                     : Icon(Icons.image_outlined, color: Colors.grey[400]),
                               ),
                             ),
@@ -303,7 +343,12 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
             child: product.imageUrl.isNotEmpty 
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(product.imageUrl, fit: BoxFit.cover),
+                  child: CachedNetworkImage(
+                    imageUrl: product.imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: isDark ? Colors.grey[900] : Colors.grey[100]),
+                    errorWidget: (context, url, error) => const Icon(Icons.image_outlined, color: Colors.grey),
+                  ),
                 )
               : const Icon(Icons.image_outlined, color: Colors.grey),
           ),
@@ -511,6 +556,10 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
                       hintText: 'Search products, categories...',
                       hintStyle: TextStyle(color: Colors.grey[500]),
                       border: InputBorder.none,
+                      suffixIcon: IconButton(
+                        icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                        onPressed: _listen,
+                      ),
                     ),
                   ),
                 ),
@@ -520,6 +569,45 @@ class _AdminInventoryViewState extends State<AdminInventoryView> {
             ],
           ),
         ),
+        if (_searchQuery.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : SearchSuggestionService.adminInventorySuggestions)
+                  .map((suggestion) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                        title: Text(
+                          suggestion,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = suggestion;
+                            _searchQuery = suggestion;
+                          });
+                        },
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
         const SizedBox(height: 32),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(

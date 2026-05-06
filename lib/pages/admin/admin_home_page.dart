@@ -15,6 +15,8 @@ import 'admin_settings_view.dart';
 import 'admin_banners_view.dart';
 import 'admin_reviews_view.dart';
 
+import '../../main.dart';
+
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
 
@@ -26,6 +28,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final Color primaryColor = const Color(0xFFB10044);
   int _selectedIndex = 0;
   int _orderInitialTab = 0;
+  DateTime? _lastPressedAt;
 
   final Stream<QuerySnapshot> _pendingOrdersStream = FirebaseFirestore.instance
       .collection('orders')
@@ -131,33 +134,70 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) async {
-        if (didPop) return;
-        final shouldPop = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Exit App'),
-            content: const Text('Are you sure you want to exit?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('No'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Yes', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
-        );
-        if (shouldPop == true) {
-          SystemNavigator.pop();
-        }
-      },
-      child: Scaffold(
+    return PortalTheme(
+      notifier: adminThemeNotifier,
+      child: Builder(
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return PopScope(
+            canPop: false,
+            onPopInvoked: (didPop) async {
+              if (didPop) return;
+
+              // 1. If the Navigator can pop (a real page was pushed), pop it
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+                return;
+              }
+
+              // 2. If we are on any tab other than Dashboard, go back to Dashboard
+              if (_selectedIndex != 0) {
+                setState(() {
+                  _selectedIndex = 0;
+                  _orderInitialTab = 0;
+                });
+                return;
+              }
+
+              // 3. Otherwise, handle double-press to exit logic
+              final now = DateTime.now();
+              final backButtonHasNotBeenPressedRecently = _lastPressedAt == null || 
+                  now.difference(_lastPressedAt!) > const Duration(seconds: 2);
+
+              if (backButtonHasNotBeenPressedRecently) {
+                _lastPressedAt = now;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Press back again to exit'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Exit App'),
+                  content: const Text('Are you sure you want to exit?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('No'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Yes', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (shouldPop == true) {
+                SystemNavigator.pop();
+              }
+            },
+            child: Scaffold(
         key: _scaffoldKey,
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -372,8 +412,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
             }
           );
         }
+          ),
+            ),
+          );
+        },
       ),
-    ),
     );
   }
 }

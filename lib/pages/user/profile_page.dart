@@ -47,12 +47,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
                 ValueListenableBuilder<ThemeMode>(
-                  valueListenable: themeNotifier,
+                  valueListenable: userThemeNotifier,
                   builder: (_, mode, __) {
                     return Switch(
                       value: mode == ThemeMode.dark,
                       onChanged: (v) {
-                        themeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
+                        userThemeNotifier.value = v ? ThemeMode.dark : ThemeMode.light;
                         Navigator.pop(context);
                       },
                       activeColor: primaryColor,

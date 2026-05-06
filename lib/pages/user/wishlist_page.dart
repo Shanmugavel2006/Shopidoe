@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/product_model.dart';
 import '../../services/cart_service.dart';
 import 'checkout_page.dart';
@@ -112,7 +113,12 @@ class WishlistPage extends StatelessWidget {
                                     width: 100, height: 100,
                                     color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100],
                                     child: variantProduct.imageUrl.isNotEmpty
-                                        ? Image.network(variantProduct.imageUrl, fit: BoxFit.cover)
+                                        ? CachedNetworkImage(
+                                            imageUrl: variantProduct.imageUrl,
+                                            fit: BoxFit.cover,
+                                            placeholder: (context, url) => Container(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100]),
+                                            errorWidget: (context, url, error) => Icon(Icons.image_outlined, color: Colors.grey[400], size: 40),
+                                          )
                                         : Icon(Icons.image_outlined, color: Colors.grey[400], size: 40),
                                   ),
                                 ),
@@ -299,8 +305,12 @@ class WishlistPage extends StatelessWidget {
                                 width: double.infinity,
                                 color: isDark ? Colors.grey[900] : Colors.grey[50],
                                 child: item.imageUrl.isNotEmpty
-                                    ? Image.network(item.imageUrl, fit: BoxFit.cover,
-                                        errorBuilder: (c, e, s) => Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]))
+                                    ? CachedNetworkImage(
+                                        imageUrl: item.imageUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (context, url) => Container(color: isDark ? Colors.grey[900] : Colors.grey[50]),
+                                        errorWidget: (context, url, error) => Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]),
+                                      )
                                     : Icon(Icons.image_outlined, size: 40, color: Colors.grey[300]),
                               ),
                             ),

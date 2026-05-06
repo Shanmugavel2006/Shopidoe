@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/category_utils.dart';
+import '../../services/speech_service.dart';
+import '../../services/search_suggestion_service.dart';
 import 'category_detail_page.dart';
 
 class CategoryPage extends StatefulWidget {
@@ -13,41 +14,39 @@ class CategoryPage extends StatefulWidget {
   State<CategoryPage> createState() => _CategoryPageState();
 }
 
-class _CategoryPageState extends State<CategoryPage> {
+class _CategoryPageState extends State<CategoryPage> with SpeechRecognitionMixin<CategoryPage> {
   final Color primaryColor = const Color(0xFFB10044);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  late stt.SpeechToText _speech;
-  bool _isListening = false;
+  List<String> _categoryNames = [];
 
   @override
   void initState() {
     super.initState();
-    _speech = stt.SpeechToText();
+    _fetchCategoryNames();
   }
 
-  void _listen() async {
-    if (!_isListening) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => debugPrint('onStatus: $val'),
-        onError: (val) => debugPrint('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) => setState(() {
-            _searchController.text = val.recognizedWords;
-            _searchQuery = val.recognizedWords;
-          }),
-        );
-      } else {
-        setState(() => _isListening = false);
-        _speech.stop();
+  Future<void> _fetchCategoryNames() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('categories').get();
+      if (mounted) {
+        setState(() {
+          _categoryNames = snapshot.docs
+              .map((doc) => doc.get('name') as String)
+              .toSet()
+              .toList();
+        });
       }
-    } else {
-      setState(() => _isListening = false);
-      _speech.stop();
+    } catch (e) {
+      debugPrint('Error fetching category names: $e');
     }
+  }
+
+  void _listen() {
+    toggleListening(
+      controller: _searchController,
+      onResult: (text) => setState(() => _searchQuery = text),
+    );
   }
 
   Widget _buildCategoryItem(BuildContext context, String title, IconData icon, Color bgColor) {
@@ -133,117 +132,165 @@ class _CategoryPageState extends State<CategoryPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Categories',
-                style: TextStyle(
-                  fontSize: 32, 
-                  fontWeight: FontWeight.bold, 
-                  color: isDark ? Colors.white : const Color(0xFF1A1A1A)
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Search Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                height: 50,
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  decoration: InputDecoration(
-                    hintText: 'Search categories...',
-                    hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
-                    suffixIcon: IconButton(
-                      icon: Icon(_isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
-                      onPressed: _listen,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Explore our boutique collections',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    'Categories',
+                    style: TextStyle(
+                      fontSize: 32, 
+                      fontWeight: FontWeight.bold, 
+                      color: isDark ? Colors.white : const Color(0xFF1A1A1A)
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 20),
+                  // Search Bar
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.filter_list, size: 18, color: isDark ? Colors.white : Colors.black87),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Filter', 
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black87
-                          )
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      decoration: InputDecoration(
+                        hintText: 'Search categories...',
+                        hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
+                        suffixIcon: IconButton(
+                          icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: primaryColor),
+                          onPressed: _listen,
                         ),
-                      ],
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                      ),
                     ),
+                  ),
+                  if (_searchQuery.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _categoryNames.isNotEmpty ? _categoryNames : ['Stationery', 'Cosmetics', 'Accessories', 'Beauty', 'Bags'])
+                            .map((suggestion) => ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.search, size: 20, color: Colors.grey),
+                                  title: Text(
+                                    suggestion,
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : Colors.black87,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                                  onTap: () {
+                                    setState(() {
+                                      _searchController.text = suggestion;
+                                      _searchQuery = suggestion;
+                                    });
+                                  },
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Explore our boutique collections',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.filter_list, size: 18, color: isDark ? Colors.white : Colors.black87),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Filter', 
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87
+                              )
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('categories').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) return const Center(child: Text('Something went wrong'));
-                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+            ),
+          ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('categories').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const SliverToBoxAdapter(child: Center(child: Text('Something went wrong')));
+              if (snapshot.connectionState == ConnectionState.waiting) return const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()));
 
-                  List<QueryDocumentSnapshot> categories = snapshot.data!.docs;
+              List<QueryDocumentSnapshot> categories = snapshot.data!.docs;
 
-                  // Apply search filter
-                  if (_searchQuery.isNotEmpty) {
-                    categories = categories.where((doc) => 
-                      doc['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
-                    ).toList();
-                  }
+              // Apply search filter
+              if (_searchQuery.isNotEmpty) {
+                categories = categories.where((doc) => 
+                  doc['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase())
+                ).toList();
+              }
 
-                  if (categories.isEmpty) {
-                    return Center(
+              if (categories.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 40),
                       child: Text(
                         _searchQuery.isEmpty ? 'No categories available' : 'No matching categories found',
                         style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                      )
-                    );
-                  }
-
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: 0.85,
+                      ),
                     ),
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
+                  )
+                );
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.85,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
                       final name = categories[index]['name'];
                       return _buildCategoryItem(
                         context,
@@ -252,12 +299,14 @@ class _CategoryPageState extends State<CategoryPage> {
                         CategoryUtils.getColorForCategory(name),
                       );
                     },
-                  );
-                },
-              ),
-            ],
+                    childCount: categories.length,
+                  ),
+                ),
+              );
+            },
           ),
-        ),
+          const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        ],
       ),
     );
   }
