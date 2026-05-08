@@ -51,46 +51,50 @@ class _CategoryPageState extends State<CategoryPage> with SpeechRecognitionMixin
 
   Widget _buildCategoryItem(BuildContext context, String title, IconData icon, Color bgColor) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
-      onTap: () => widget.onCategorySelected(title),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: bgColor.withOpacity(isDark ? 0.2 : 0.1),
-                shape: BoxShape.circle,
-                border: Border.all(color: bgColor.withOpacity(0.3), width: 1),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onCategorySelected(title),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: isDark ? Colors.grey[800]! : primaryColor.withOpacity(0.1)),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(isDark ? 0.1 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
               ),
-              child: Icon(icon, color: bgColor, size: 28),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: bgColor.withOpacity(isDark ? 0.2 : 0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: bgColor.withOpacity(0.3), width: 1),
+                ),
+                child: Icon(icon, color: bgColor, size: 28),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF2D2D2D),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -99,10 +103,11 @@ class _CategoryPageState extends State<CategoryPage> with SpeechRecognitionMixin
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color lightPinkBg = const Color(0xFFFFF5F8);
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : lightPinkBg,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF121212) : lightPinkBg,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primaryColor),
@@ -154,9 +159,16 @@ class _CategoryPageState extends State<CategoryPage> with SpeechRecognitionMixin
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     height: 50,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8F9FA),
+                      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[100]!),
+                      border: Border.all(color: primaryColor, width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: TextField(
                       controller: _searchController,

@@ -172,6 +172,7 @@ class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<H
   final TextEditingController _searchController = TextEditingController();
   String _userName = 'User';
   List<String> _productNames = [];
+  bool _showSuggestions = true;
 
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
@@ -835,7 +836,12 @@ class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<H
                       ),
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                            _showSuggestions = true;
+                          });
+                        },
                         decoration: InputDecoration(
                           hintText: 'Search for stationery, cosmetics...',
                           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
@@ -850,10 +856,11 @@ class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<H
                       ),
                     ),
                   ),
-                  if (_searchQuery.isNotEmpty) ...[
+                  if (_searchQuery.isNotEmpty && _showSuggestions) ...[
                     const SizedBox(height: 8),
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 24),
+                      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -865,27 +872,31 @@ class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<H
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : SearchSuggestionService.userSuggestions)
-                            .map((suggestion) => ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.history, size: 20, color: Colors.grey),
-                                  title: Text(
-                                    suggestion,
-                                    style: TextStyle(
-                                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
-                                      fontWeight: FontWeight.w500,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: SearchSuggestionService.getFilteredSuggestions(_searchQuery, _productNames.isNotEmpty ? _productNames : SearchSuggestionService.userSuggestions)
+                              .map((suggestion) => ListTile(
+                                    dense: true,
+                                    leading: const Icon(Icons.history, size: 20, color: Colors.grey),
+                                    title: Text(
+                                      suggestion,
+                                      style: TextStyle(
+                                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
-                                  ),
-                                  trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
-                                  onTap: () {
-                                    setState(() {
-                                      _searchController.text = suggestion;
-                                      _searchQuery = suggestion;
-                                    });
-                                  },
-                                ))
-                            .toList(),
+                                    trailing: const Icon(Icons.north_west, size: 16, color: Colors.grey),
+                                    onTap: () {
+                                      setState(() {
+                                        _searchController.text = suggestion;
+                                        _searchQuery = suggestion;
+                                        _showSuggestions = false;
+                                      });
+                                      FocusScope.of(context).unfocus();
+                                    },
+                                  ))
+                              .toList(),
+                        ),
                       ),
                     ),
                   ],

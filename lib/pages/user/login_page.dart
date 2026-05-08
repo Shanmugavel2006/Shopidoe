@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../admin/admin_login_page.dart';
+import '../admin/admin_home_page.dart';
 import 'signup_page.dart';
 import 'user_home_page.dart';
 import 'forgot_password_page.dart';
@@ -142,6 +143,17 @@ class _LoginPageState extends State<LoginPage> {
           await FirebaseAuth.instance.signOut();
           _showErrorDialog('Account Deactivated', 'Your account has been deactivated. Please contact admin.');
           setState(() => _isLoading = false);
+          return;
+        }
+
+        // Check if the user is an admin and redirect to the appropriate portal
+        if (userData['role'] == 'admin') {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminHomePage()),
+            );
+          }
           return;
         }
       }

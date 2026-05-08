@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user/login_page.dart';
 import 'user/user_home_page.dart';
+import 'admin/admin_home_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,14 +28,40 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         setState(() {});
       });
     
-    _controller.forward().then((value) {
+    _controller.forward().then((value) async {
       if (mounted) {
         User? user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const UserHomePage()),
-          );
+          try {
+            // Fetch user role from Firestore to determine which portal to show
+            final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+            
+            if (mounted) {
+              if (userDoc.exists && userDoc.data()?['role'] == 'admin') {
+                // For security, admins must always log in when opening the app
+                await FirebaseAuth.instance.signOut();
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginPage()),
+                  );
+                }
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UserHomePage()),
+                );
+              }
+            }
+          } catch (e) {
+            // On error, default to UserHomePage
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const UserHomePage()),
+              );
+            }
+          }
         } else {
           Navigator.pushReplacement(
             context,
