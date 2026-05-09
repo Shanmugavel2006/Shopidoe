@@ -385,27 +385,33 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 type: BottomNavigationBarType.fixed,
                 backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFFFF5F8),
                 selectedItemColor: primaryColor,
-                unselectedItemColor: isDark ? Colors.grey[600] : Colors.grey[400],
+                unselectedItemColor: primaryColor, // Labels always pink
                 selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                unselectedLabelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 11),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                 items: [
-                  const BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'DASH'),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.grid_view, color: _selectedIndex == 0 ? primaryColor : Colors.grey[400]),
+                    label: 'DASH',
+                  ),
                   BottomNavigationBarItem(
                     icon: Badge(
                       label: pendingCount > 0 ? Text(pendingCount.toString()) : null,
                       isLabelVisible: pendingCount > 0,
-                      child: const Icon(Icons.receipt_long)
-                    ), 
-                    label: 'ORDERS'
+                      child: Icon(Icons.receipt_long, color: _selectedIndex == 1 ? primaryColor : Colors.grey[400]),
+                    ),
+                    label: 'ORDERS',
                   ),
-                  const BottomNavigationBarItem(icon: Icon(Icons.inventory_2), label: 'ITEMS'),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.inventory_2, color: _selectedIndex == 3 ? primaryColor : Colors.grey[400]),
+                    label: 'ITEMS',
+                  ),
                   BottomNavigationBarItem(
                     icon: Badge(
                       label: userCount > 0 ? Text(userCount.toString()) : null,
                       isLabelVisible: userCount > 0,
-                      child: const Icon(Icons.group)
-                    ), 
-                    label: 'USERS'
+                      child: Icon(Icons.group, color: _selectedIndex == 4 ? primaryColor : Colors.grey[400]),
+                    ),
+                    label: 'USERS',
                   ),
                 ],
               );

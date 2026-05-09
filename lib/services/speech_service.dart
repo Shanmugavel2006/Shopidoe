@@ -4,7 +4,17 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 mixin SpeechRecognitionMixin<T extends StatefulWidget> on State<T> {
   late stt.SpeechToText speech;
   bool isListening = false;
-  
+
+  // Auto-initialize when the mixin is mixed into a State.
+  // This is called automatically by Flutter's lifecycle via initState override.
+  @override
+  void initState() {
+    super.initState();
+    speech = stt.SpeechToText();
+  }
+
+  // Keep the explicit method available for any page that calls it manually.
+  // Calling it twice is harmless — it just re-creates the instance.
   void initSpeech() {
     speech = stt.SpeechToText();
   }
@@ -27,7 +37,7 @@ mixin SpeechRecognitionMixin<T extends StatefulWidget> on State<T> {
           if (mounted) {
             setState(() => isListening = false);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Speech error: ${val.errorMsg}')),
+              SnackBar(content: Text('Microphone error: ${val.errorMsg}')),
             );
           }
         },
@@ -35,6 +45,14 @@ mixin SpeechRecognitionMixin<T extends StatefulWidget> on State<T> {
 
       if (available) {
         setState(() => isListening = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Speak now...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
         speech.listen(
           onResult: (val) {
             if (mounted) {
@@ -47,7 +65,7 @@ mixin SpeechRecognitionMixin<T extends StatefulWidget> on State<T> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Speech recognition not available on this device')),
+            const SnackBar(content: Text('Microphone not available. Check app permissions.')),
           );
         }
       }
