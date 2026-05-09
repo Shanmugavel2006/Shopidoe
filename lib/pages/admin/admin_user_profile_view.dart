@@ -21,15 +21,15 @@ class AdminUserProfileView extends StatefulWidget {
 }
 
 class _AdminUserProfileViewState extends State<AdminUserProfileView> {
-  final Color primaryColor = const Color(0xFF1B4332);
-  final Color lightBgColor = const Color(0xFFF1F7F5);
+  final Color primaryColor = const Color(0xFFB10044);
+  final Color lightBgColor = const Color(0xFFFFF0F5);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFFF5F8),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFFFF5F8),
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -360,8 +360,9 @@ class _AdminUserProfileViewState extends State<AdminUserProfileView> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F4F4).withOpacity(0.5),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: const Color(0xFFB10044).withOpacity(0.1)),
       ),
       child: child,
     );

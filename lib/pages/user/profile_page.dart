@@ -144,34 +144,136 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showUserDetailsDialog(Map<String, dynamic> userData, String email) {
+    bool isEditing = false;
+    final String nameText = userData['name'] ?? '';
+    final String emailText = email;
+    final String mobileText = userData['mobile'] ?? '';
+    final String addressText = userData['address'] ?? '';
+    final TextEditingController nameController = TextEditingController(text: nameText)
+      ..selection = TextSelection.collapsed(offset: nameText.length);
+    final TextEditingController emailController = TextEditingController(text: emailText)
+      ..selection = TextSelection.collapsed(offset: emailText.length);
+    final TextEditingController mobileController = TextEditingController(text: mobileText)
+      ..selection = TextSelection.collapsed(offset: mobileText.length);
+    final TextEditingController addressController = TextEditingController(text: addressText)
+      ..selection = TextSelection.collapsed(offset: addressText.length);
+
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('User Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
-                ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          
+          return Dialog(
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEditing ? 'Edit Details' : 'User Details',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+                        ),
+                        Row(
+                          children: [
+                            if (!isEditing)
+                              IconButton(
+                                icon: Icon(Icons.edit_outlined, color: primaryColor),
+                                onPressed: () => setDialogState(() => isEditing = true),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context)
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    
+                    if (isEditing) ...[
+                      _buildEditableDetail('Name', nameController, isDark),
+                      _buildEditableDetail('Email', emailController, isDark, hasPinkBorder: true),
+                      _buildEditableDetail('Mobile', mobileController, isDark, hasPinkBorder: true, keyboardType: TextInputType.phone),
+                      _buildEditableDetail('Address', addressController, isDark),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () async {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                                'name': nameController.text.trim(),
+                                'mobile': mobileController.text.trim(),
+                                'address': addressController.text.trim(),
+                                // Note: Typically we don't update login email via firestore only, 
+                                // but we update the display record as requested.
+                              });
+                            }
+                            if (mounted) Navigator.pop(context);
+                          },
+                          child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ] else ...[
+                      _buildDetailRow('Name', userData['name'] ?? 'Not set'),
+                      _buildDetailRow('Email', email),
+                      _buildDetailRow('Mobile', userData['mobile'] ?? 'Not set'),
+                      _buildDetailRow('Address', userData['address'] ?? 'Not set'),
+                      _buildDetailRow('Joined Date', userData['createdAt'] != null ? DateFormat('dd MMM, yyyy').format((userData['createdAt'] as Timestamp).toDate()) : 'Not available'),
+                    ],
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
-              const Divider(),
-              const SizedBox(height: 12),
-              _buildDetailRow('Name', userData['name'] ?? 'Not set'),
-              _buildDetailRow('Email', email),
-              _buildDetailRow('Mobile', userData['mobile'] ?? 'Not set'),
-              _buildDetailRow('Address', userData['address'] ?? 'Not set'),
-              _buildDetailRow('Joined Date', userData['createdAt'] != null ? DateFormat('dd MMM, yyyy').format((userData['createdAt'] as Timestamp).toDate()) : 'Not available'),
-              const SizedBox(height: 20),
-            ],
+            ),
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _buildEditableDetail(String label, TextEditingController controller, bool isDark, {bool hasPinkBorder = false, TextInputType? keyboardType}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: isDark ? Colors.grey[900] : Colors.grey[50],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: hasPinkBorder ? BorderSide(color: primaryColor, width: 1) : BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: primaryColor, width: 2),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -191,11 +293,21 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _editShippingDetails(Map<String, dynamic> userData) async {
-    final TextEditingController nameController = TextEditingController(text: userData['name'] ?? '');
-    final TextEditingController mobileController = TextEditingController(text: userData['mobile'] ?? '');
-    final TextEditingController addressController = TextEditingController(text: userData['address'] ?? '');
-    final TextEditingController cityController = TextEditingController(text: userData['city'] ?? '');
-    final TextEditingController zipController = TextEditingController(text: userData['zip'] ?? '');
+    final String sNameText = userData['name'] ?? '';
+    final String sMobileText = userData['mobile'] ?? '';
+    final String sAddressText = userData['address'] ?? '';
+    final String sCityText = userData['city'] ?? '';
+    final String sZipText = userData['zip'] ?? '';
+    final TextEditingController nameController = TextEditingController(text: sNameText)
+      ..selection = TextSelection.collapsed(offset: sNameText.length);
+    final TextEditingController mobileController = TextEditingController(text: sMobileText)
+      ..selection = TextSelection.collapsed(offset: sMobileText.length);
+    final TextEditingController addressController = TextEditingController(text: sAddressText)
+      ..selection = TextSelection.collapsed(offset: sAddressText.length);
+    final TextEditingController cityController = TextEditingController(text: sCityText)
+      ..selection = TextSelection.collapsed(offset: sCityText.length);
+    final TextEditingController zipController = TextEditingController(text: sZipText)
+      ..selection = TextSelection.collapsed(offset: sZipText.length);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     await showDialog(
@@ -267,6 +379,235 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
+      ),
+    );
+  }
+
+  void _showOrderDetailsDialog(Map<String, dynamic> order, String orderId) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final status = order['status'] ?? 'Ordered';
+    final amount = order['totalAmount'] ?? 0;
+    final date = order['createdAt'] != null
+        ? DateFormat('dd MMM yyyy, hh:mm a').format((order['createdAt'] as Timestamp).toDate())
+        : 'N/A';
+    final items = (order['items'] as List<dynamic>?) ?? [];
+
+    int steps = 1;
+    if (status == 'Confirmed') steps = 2;
+    if (status == 'Delivered') steps = 3;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Order Details', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                            const SizedBox(height: 4),
+                            Text('#${orderId.substring(0, 6).toUpperCase()}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: status == 'Delivered' ? Colors.green.withOpacity(0.1) : primaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: status == 'Delivered' ? Colors.green : primaryColor),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              color: status == 'Delivered' ? Colors.green : primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(date, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                    const SizedBox(height: 24),
+
+                    // Progress tracker
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: primaryColor.withOpacity(0.1)),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildOrderStep(icon: Icons.shopping_bag_outlined, label: 'Order Placed', sublabel: date, isActive: steps >= 1, isDark: isDark),
+                          _buildStepConnector(steps >= 2),
+                          _buildOrderStep(icon: Icons.check_circle_outline, label: 'Order Confirmed', sublabel: steps >= 2 ? 'Confirmed by seller' : 'Pending', isActive: steps >= 2, isDark: isDark),
+                          _buildStepConnector(steps >= 3),
+                          _buildOrderStep(icon: Icons.local_shipping_outlined, label: 'Delivered', sublabel: steps >= 3 ? 'Order delivered' : 'Pending', isActive: steps >= 3, isDark: isDark),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Items section
+                    if (items.isNotEmpty) ...[
+                      Text('Items Ordered', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                      const SizedBox(height: 12),
+                      ...items.map((item) {
+                        final itemMap = item as Map<String, dynamic>;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: primaryColor.withOpacity(0.08)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 48, height: 48,
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.shopping_bag_outlined, color: primaryColor, size: 22),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(itemMap['name'] ?? 'Item', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                                    const SizedBox(height: 4),
+                                    Text('Qty: ${itemMap['quantity'] ?? 1}', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                              Text('₹${itemMap['price'] ?? ''}', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 15)),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Total
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.06),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: primaryColor.withOpacity(0.15)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
+                          Text('₹$amount', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 20)),
+                        ],
+                      ),
+                    ),
+
+                    // Shipping address
+                    if (order['shippingAddress'] != null) ...[
+                      const SizedBox(height: 20),
+                      Text('Shipping Address', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: primaryColor.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, color: primaryColor, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                order['shippingAddress'].toString(),
+                                style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black87, fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderStep({required IconData icon, required String label, required String sublabel, required bool isActive, required bool isDark}) {
+    return Row(
+      children: [
+        Container(
+          width: 42, height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive ? primaryColor : (isDark ? Colors.grey[800] : Colors.grey[200]),
+          ),
+          child: Icon(icon, color: isActive ? Colors.white : Colors.grey[400], size: 20),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isActive ? (isDark ? Colors.white : Colors.black87) : Colors.grey[400])),
+            Text(sublabel, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStepConnector(bool isActive) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 20, top: 4, bottom: 4),
+      child: Container(
+        width: 2, height: 28,
+        color: isActive ? primaryColor : Colors.grey[300],
       ),
     );
   }
@@ -552,43 +893,53 @@ class _ProfilePageState extends State<ProfilePage> {
                                   if (status == 'Confirmed') steps = 2;
                                   if (status == 'Delivered') steps = 3;
 
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : const Color(0xFFF8F9FA),
-                                      borderRadius: BorderRadius.circular(24),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text('Order #$shortId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                            Text('₹$amount', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16)),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(date, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
-                                        ),
-                                        const SizedBox(height: 20),
-                                        Row(
-                                          children: [
-                                            Expanded(child: Container(height: 6, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(3)))),
-                                            const SizedBox(width: 8),
-                                            Expanded(child: Container(height: 6, decoration: BoxDecoration(color: steps >= 2 ? primaryColor : Colors.grey[300], borderRadius: BorderRadius.circular(3)))),
-                                            const SizedBox(width: 8),
-                                            Expanded(child: Container(height: 6, decoration: BoxDecoration(color: steps >= 3 ? primaryColor : Colors.grey[300], borderRadius: BorderRadius.circular(3)))),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: Text(status.toUpperCase(), style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
-                                        ),
-                                      ],
+                                  return GestureDetector(
+                                    onTap: () => _showOrderDetailsDialog(order, doc.id),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : const Color(0xFFF8F9FA),
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(color: primaryColor.withOpacity(0.15)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text('Order #$shortId', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                              Row(
+                                                children: [
+                                                  Text('₹$amount', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                                                  const SizedBox(width: 6),
+                                                  Icon(Icons.chevron_right, color: primaryColor, size: 20),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(date, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          Row(
+                                            children: [
+                                              Expanded(child: Container(height: 6, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(3)))),
+                                              const SizedBox(width: 8),
+                                              Expanded(child: Container(height: 6, decoration: BoxDecoration(color: steps >= 2 ? primaryColor : Colors.grey[300], borderRadius: BorderRadius.circular(3)))),
+                                              const SizedBox(width: 8),
+                                              Expanded(child: Container(height: 6, decoration: BoxDecoration(color: steps >= 3 ? primaryColor : Colors.grey[300], borderRadius: BorderRadius.circular(3)))),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(status.toUpperCase(), style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }),

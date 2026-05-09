@@ -352,7 +352,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final images = _productImages;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFF1E212D),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -511,7 +511,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   children: [
                     Text(
                       widget.product.name,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -522,7 +522,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       const SizedBox(height: 16),
                       Text(
                         widget.product.description,
-                        style: const TextStyle(fontSize: 14, color: Colors.white70),
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54),
                       ),
                     ],
                     
@@ -532,7 +532,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Reviews & Ratings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text('Reviews & Ratings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                         TextButton(
                           onPressed: _showWriteReviewBottomSheet,
                           child: Text('Write Review', style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
@@ -575,16 +575,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFF2D3243),
+                                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                                 borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: primaryColor.withOpacity(0.1)),
                               ),
                               child: Column(
                                 children: [
-                                  Text(averageRating.toStringAsFixed(1), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  Text(averageRating.toStringAsFixed(1), style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                                   const SizedBox(height: 8),
                                   _buildStarRating(averageRating),
                                   const SizedBox(height: 4),
-                                  Text('${reviews.length} reviews', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                                  Text('${reviews.length} reviews', style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black54)),
                                 ],
                               ),
                             ),
@@ -614,12 +615,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(review['userName'] ?? 'Anonymous', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                            Text(review['userName'] ?? 'Anonymous', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                                             _buildStarRating((review['rating'] as num).toDouble()),
                                           ],
                                         ),
                                         const SizedBox(height: 8),
-                                        Text(review['comment'] ?? '', style: const TextStyle(color: Colors.white70)),
+                                        Text(review['comment'] ?? '', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
                                       ],
                                     ),
                                   );
@@ -631,7 +632,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     ),
 
                     const SizedBox(height: 24),
-                    const Text('Related', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text('Related', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
                     const SizedBox(height: 16),
                     // Related section can just be a placeholder or simple stream builder
                     SizedBox(
@@ -703,7 +704,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       ),
       bottomSheet: Container(
         padding: const EdgeInsets.all(16),
-        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFF1E212D),
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: SafeArea(
           child: SizedBox(
             width: double.infinity,

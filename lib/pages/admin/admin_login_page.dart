@@ -185,23 +185,24 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'admin@shopidoe.com',
                         hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.email_outlined, color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.email_outlined, color: primaryColor),
                         filled: true,
                         fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primaryColor, width: 1.5),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
                         ),
                       ),
                     ),
@@ -225,14 +226,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: '........',
                         hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.lock_outline, color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            color: Colors.grey[400],
+                            color: primaryColor,
                           ),
                           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                         ),
@@ -240,15 +242,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primaryColor, width: 1.5),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
                         ),
                       ),
                     ),

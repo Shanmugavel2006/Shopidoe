@@ -140,15 +140,30 @@ class _UserHomePageState extends State<UserHomePage> {
           onTap: (index) => setState(() => _selectedIndex = index),
           type: BottomNavigationBarType.fixed,
           selectedItemColor: primaryColor,
-          unselectedItemColor: Colors.grey[400],
+          unselectedItemColor: primaryColor, // Makes unselected labels pink
           selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
           unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'HOME'),
-            BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'CATEGORIES'),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_cart_rounded), label: 'CART'),
-            BottomNavigationBarItem(icon: Icon(Icons.favorite_rounded), label: 'WISHLIST'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'ACCOUNT'),
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_filled, color: _selectedIndex == 0 ? primaryColor : Colors.grey[400]),
+              label: 'HOME',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded, color: _selectedIndex == 1 ? primaryColor : Colors.grey[400]),
+              label: 'CATEGORIES',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart_rounded, color: _selectedIndex == 2 ? primaryColor : Colors.grey[400]),
+              label: 'CART',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.favorite_rounded, color: _selectedIndex == 3 ? primaryColor : Colors.grey[400]),
+              label: 'WISHLIST',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_rounded, color: _selectedIndex == 4 ? primaryColor : Colors.grey[400]),
+              label: 'ACCOUNT',
+            ),
           ],
         ),
             ),
@@ -765,7 +780,7 @@ class _HomeContentState extends State<HomeContent> with SpeechRecognitionMixin<H
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         titleSpacing: 0,
         title: Row(

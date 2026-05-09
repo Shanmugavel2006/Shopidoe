@@ -238,7 +238,7 @@ class WishlistPage extends StatelessWidget {
           onPressed: onBack,
         ),
         title: const Text('My Wishlist', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         foregroundColor: isDark ? Colors.white : Colors.black,
         elevation: 0,
       ),

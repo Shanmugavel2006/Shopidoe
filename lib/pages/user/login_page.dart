@@ -276,23 +276,24 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _inputController,
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
                         hintText: 'number or email',
                         hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.person_outline, color: Colors.grey[400]),
+                        prefixIcon: Icon(Icons.person_outline, color: primaryColor),
                         filled: true,
                         fillColor: Theme.of(context).cardColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                          borderSide: BorderSide(color: primaryColor, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primaryColor, width: 1.5),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
                         ),
                       ),
                     ),
@@ -332,14 +333,15 @@ class _LoginPageState extends State<LoginPage> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: !_isPasswordVisible,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     decoration: InputDecoration(
                       hintText: '........',
                       hintStyle: TextStyle(color: Colors.grey[400]),
-                      prefixIcon: Icon(Icons.lock_outline, color: Colors.grey[400]),
+                      prefixIcon: Icon(Icons.lock_outline, color: primaryColor),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: Colors.grey[400],
+                          color: primaryColor,
                         ),
                         onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                       ),
@@ -347,15 +349,15 @@ class _LoginPageState extends State<LoginPage> {
                       fillColor: Theme.of(context).cardColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                        borderSide: BorderSide(color: primaryColor, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                        borderSide: BorderSide(color: primaryColor, width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor, width: 1.5),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
                       ),
                     ),
                   ),
@@ -422,11 +424,11 @@ class _LoginPageState extends State<LoginPage> {
                     MaterialPageRoute(builder: (context) => const AdminLoginPage()),
                   );
                 },
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 20),
-                label: const Text('Admin Sign-In'),
+                icon: Icon(Icons.admin_panel_settings_outlined, size: 20, color: primaryColor),
+                label: Text('Admin Sign-In', style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey[600],
-                  side: BorderSide(color: Colors.grey[300]!),
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),

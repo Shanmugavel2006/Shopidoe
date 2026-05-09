@@ -199,9 +199,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
             },
             child: Scaffold(
         key: _scaffoldKey,
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFFFF5F8),
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFFFF5F8),
         elevation: 0,
         leading: _selectedIndex == 0 
           ? IconButton(
@@ -260,7 +260,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ],
       ),
       drawer: Drawer(
-        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFFFF5F8),
         child: Column(
           children: [
             Container(
@@ -383,11 +383,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   }
                 },
                 type: BottomNavigationBarType.fixed,
-                backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFFFF5F8),
                 selectedItemColor: primaryColor,
                 unselectedItemColor: isDark ? Colors.grey[600] : Colors.grey[400],
                 selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                unselectedLabelStyle: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 11),
                 items: [
                   const BottomNavigationBarItem(icon: Icon(Icons.grid_view), label: 'DASH'),
                   BottomNavigationBarItem(
