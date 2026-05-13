@@ -641,67 +641,87 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         stream: FirebaseFirestore.instance
                             .collection('products')
                             .where('category', isEqualTo: widget.product.category)
-                            .limit(10) // Fetch a few more to allow for exclusion and variety
+                            .limit(40) // Fetch a larger batch for better matching in memory
                             .snapshots(),
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox();
                           
-                          // Convert to Product objects while ensuring ID is preserved
-                          final allRelated = snapshot.data!.docs.map((doc) {
+                          final allDocs = snapshot.data!.docs;
+                          final List<Product> allRelated = allDocs.map((doc) {
                             final data = doc.data() as Map<String, dynamic>;
                             return Product.fromMap({...data, 'id': doc.id});
                           }).toList();
                           
-                          // Keywords to ignore when matching names
-                          final ignoreWords = {'the', 'and', 'for', 'with', 'natural', 'pure', 'best', 'organic'};
-                          final currentNameWords = widget.product.name
-                              .toLowerCase()
-                              .split(RegExp(r'\s+'))
-                              .where((w) => w.length > 2 && !ignoreWords.contains(w))
-                              .toSet();
+                          // Keywords to ignore
+                          final ignoreWords = {'the', 'and', 'for', 'with', 'natural', 'pure', 'best', 'organic', 'product'};
                           
-                          // Score and filter
-                          final relatedProducts = allRelated
+                          // Extract significant words from current product name
+                          final currentName = widget.product.name.toLowerCase();
+                          final currentWords = currentName
+                              .split(RegExp(r'[\s\-,.]+'))
+                              .where((w) => w.length > 2 && !ignoreWords.contains(w))
+                              .toList();
+
+                          // Algorithm: Calculate relevance score for each product
+                          final scoredProducts = allRelated
                               .where((p) => p.id != widget.product.id)
                               .map((p) {
-                                final pNameWords = p.name.toLowerCase().split(RegExp(r'\s+')).toSet();
-                                int score = 0;
-                                for (var word in currentNameWords) {
-                                  if (pNameWords.contains(word)) score += 10;
+                                final pName = p.name.toLowerCase();
+                                double score = 0;
+
+                                // 1. Check for word matches (fuzzy)
+                                for (var word in currentWords) {
+                                  if (pName.contains(word)) {
+                                    score += 10;
+                                    // Bonus for exact word match
+                                    if (pName.split(RegExp(r'\s+')).contains(word)) {
+                                      score += 5;
+                                    }
+                                  }
                                 }
+
+                                // 2. Bonus if they start with the same brand/word
+                                final currentFirstWord = currentName.split(' ').first;
+                                if (pName.startsWith(currentFirstWord) && currentFirstWord.length > 2) {
+                                  score += 15;
+                                }
+
+                                // 3. Small bonus for similar price range (within 20%)
+                                try {
+                                  double p1 = double.parse(widget.product.price.replaceAll(',', ''));
+                                  double p2 = double.parse(p.price.replaceAll(',', ''));
+                                  if ((p1 - p2).abs() < (p1 * 0.2)) {
+                                    score += 2;
+                                  }
+                                } catch (_) {}
+
                                 return MapEntry(p, score);
                               })
                               .toList();
 
                           // Sort by score (descending)
-                          relatedProducts.sort((a, b) => b.value.compareTo(a.value));
+                          scoredProducts.sort((a, b) => b.value.compareTo(a.value));
                           
-                          // Group by score to allow shuffling within the same relevance level
-                          final Map<int, List<Product>> groupedByScore = {};
-                          for (var entry in relatedProducts) {
-                            groupedByScore.putIfAbsent(entry.value, () => []).add(entry.key);
+                          // Group by score to allow shuffling among equally relevant items
+                          final Map<double, List<Product>> grouped = {};
+                          for (var entry in scoredProducts) {
+                            grouped.putIfAbsent(entry.value, () => []).add(entry.key);
                           }
 
-                          // Build the final list by taking items from highest score groups first
                           final List<Product> finalFive = [];
-                          final sortedScores = groupedByScore.keys.toList()..sort((a, b) => b.compareTo(a));
+                          final sortedScores = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
                           for (var score in sortedScores) {
-                            final itemsInGroup = groupedByScore[score]!..shuffle();
-                            for (var item in itemsInGroup) {
-                              if (finalFive.length < 5) {
-                                finalFive.add(item);
-                              } else {
-                                break;
-                              }
+                            final group = grouped[score]!..shuffle();
+                            for (var item in group) {
+                              if (finalFive.length < 5) finalFive.add(item);
+                              else break;
                             }
                             if (finalFive.length >= 5) break;
                           }
 
                           if (finalFive.isEmpty) {
-                            return const Center(
-                              child: Text('No related products found', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                            );
+                            return const Center(child: Text('No related products found', style: TextStyle(color: Colors.grey, fontSize: 12)));
                           }
 
                           return ListView.builder(
