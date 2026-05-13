@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  Timer? _adminTimer;
 
   final Color primaryColor = const Color(0xFFB10044); // Magenta from image
 
@@ -106,24 +108,34 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
     
     try {
-      String email = input;
+      String email = '';
       DocumentSnapshot? userDocSnapshot;
       
-      // Fast check: If it's a mobile number (doesn't contain @), find the email in Firestore
-      if (!input.contains('@')) {
-        final userQuery = await FirebaseFirestore.instance
-            .collection('users')
-            .where('mobile', isEqualTo: input)
-            .limit(1)
-            .get();
-        
-        if (userQuery.docs.isEmpty) {
-          _showErrorDialog('Wrong Credentials', 'No user found with this mobile number. Please check your number or sign up.');
-          setState(() => _isLoading = false);
-          return;
-        }
-        userDocSnapshot = userQuery.docs.first;
-        email = userDocSnapshot.get('email');
+      // Check if user exists in Firestore first
+      final usersCollection = FirebaseFirestore.instance.collection('users');
+      QuerySnapshot userQuery;
+      
+      if (input.contains('@')) {
+        userQuery = await usersCollection.where('email', isEqualTo: input).limit(1).get();
+      } else {
+        userQuery = await usersCollection.where('mobile', isEqualTo: input).limit(1).get();
+      }
+
+      if (userQuery.docs.isEmpty) {
+        _showErrorDialog('Account Not Found', 'Please signup to continue.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      userDocSnapshot = userQuery.docs.first;
+      final userData = userDocSnapshot.data() as Map<String, dynamic>;
+      email = userData['email'] ?? '';
+
+      // Prevent admin login on user page
+      if (userData['role'] == 'admin') {
+        _showErrorDialog('Wrong Credentials', 'Wrong password or email.');
+        setState(() => _isLoading = false);
+        return;
       }
 
       // Sign in with email and password
@@ -132,30 +144,12 @@ class _LoginPageState extends State<LoginPage> {
         password: password,
       );
 
-      // Check isActive status in parallel or right after
-      if (userDocSnapshot == null) {
-        userDocSnapshot = await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).get();
-      }
-
-      if (userDocSnapshot.exists) {
-        final userData = userDocSnapshot.data() as Map<String, dynamic>;
-        if (userData['isActive'] == false) {
-          await FirebaseAuth.instance.signOut();
-          _showErrorDialog('Account Deactivated', 'Your account has been deactivated. Please contact admin.');
-          setState(() => _isLoading = false);
-          return;
-        }
-
-        // Check if the user is an admin and redirect to the appropriate portal
-        if (userData['role'] == 'admin') {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AdminHomePage()),
-            );
-          }
-          return;
-        }
+      // Check isActive status
+      if (userData['isActive'] == false) {
+        await FirebaseAuth.instance.signOut();
+        _showErrorDialog('Account Deactivated', 'Your account has been deactivated. Please contact admin.');
+        setState(() => _isLoading = false);
+        return;
       }
 
       if (mounted) {
@@ -170,7 +164,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
         title = 'Wrong Credentials';
-        message = 'The email/mobile or password you entered is incorrect. Please try again.';
+        message = 'Wrong password or email.';
       } else if (e.code == 'invalid-email') {
         title = 'Invalid Email';
         message = 'Please enter a valid email address.';
@@ -214,31 +208,44 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 const SizedBox(height: 0),
                 Center(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 120,
-                    errorBuilder: (context, error, stackTrace) => Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [],
+                  child: GestureDetector(
+                    onLongPressStart: (_) {
+                      _adminTimer = Timer(const Duration(seconds: 5), () {
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const AdminLoginPage()),
+                          );
+                        }
+                      });
+                    },
+                    onLongPressEnd: (_) => _adminTimer?.cancel(),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 120,
+                      errorBuilder: (context, error, stackTrace) => Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [],
+                            ),
+                            child: const Icon(Icons.shopping_bag, size: 70, color: Color(0xFFB10044)),
                           ),
-                          child: const Icon(Icons.shopping_bag, size: 70, color: Color(0xFFB10044)),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'SHOPIDOE',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: primaryColor,
-                            letterSpacing: 1.2,
+                          const SizedBox(height: 12),
+                          Text(
+                            'SHOPIDOE',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: primaryColor,
+                              letterSpacing: 1.2,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -416,25 +423,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // Admin Sign-In Button
-              OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AdminLoginPage()),
-                  );
-                },
-                icon: Icon(Icons.admin_panel_settings_outlined, size: 20, color: primaryColor),
-                label: Text('Admin Sign-In', style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-              ),
               const SizedBox(height: 40),
             ],
           ),

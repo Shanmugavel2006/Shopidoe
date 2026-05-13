@@ -638,25 +638,97 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     SizedBox(
                       height: 150,
                       child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance.collection('products').where('category', isEqualTo: widget.product.category).limit(5).snapshots(),
+                        stream: FirebaseFirestore.instance
+                            .collection('products')
+                            .where('category', isEqualTo: widget.product.category)
+                            .limit(10) // Fetch a few more to allow for exclusion and variety
+                            .snapshots(),
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox();
-                          final docs = snapshot.data!.docs.where((doc) => doc.id != widget.product.id).toList();
+                          
+                          // Convert to Product objects while ensuring ID is preserved
+                          final allRelated = snapshot.data!.docs.map((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            return Product.fromMap({...data, 'id': doc.id});
+                          }).toList();
+                          
+                          // Keywords to ignore when matching names
+                          final ignoreWords = {'the', 'and', 'for', 'with', 'natural', 'pure', 'best', 'organic'};
+                          final currentNameWords = widget.product.name
+                              .toLowerCase()
+                              .split(RegExp(r'\s+'))
+                              .where((w) => w.length > 2 && !ignoreWords.contains(w))
+                              .toSet();
+                          
+                          // Score and filter
+                          final relatedProducts = allRelated
+                              .where((p) => p.id != widget.product.id)
+                              .map((p) {
+                                final pNameWords = p.name.toLowerCase().split(RegExp(r'\s+')).toSet();
+                                int score = 0;
+                                for (var word in currentNameWords) {
+                                  if (pNameWords.contains(word)) score += 10;
+                                }
+                                return MapEntry(p, score);
+                              })
+                              .toList();
+
+                          // Sort by score (descending)
+                          relatedProducts.sort((a, b) => b.value.compareTo(a.value));
+                          
+                          // Group by score to allow shuffling within the same relevance level
+                          final Map<int, List<Product>> groupedByScore = {};
+                          for (var entry in relatedProducts) {
+                            groupedByScore.putIfAbsent(entry.value, () => []).add(entry.key);
+                          }
+
+                          // Build the final list by taking items from highest score groups first
+                          final List<Product> finalFive = [];
+                          final sortedScores = groupedByScore.keys.toList()..sort((a, b) => b.compareTo(a));
+
+                          for (var score in sortedScores) {
+                            final itemsInGroup = groupedByScore[score]!..shuffle();
+                            for (var item in itemsInGroup) {
+                              if (finalFive.length < 5) {
+                                finalFive.add(item);
+                              } else {
+                                break;
+                              }
+                            }
+                            if (finalFive.length >= 5) break;
+                          }
+
+                          if (finalFive.isEmpty) {
+                            return const Center(
+                              child: Text('No related products found', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            );
+                          }
+
                           return ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: docs.length,
+                            itemCount: finalFive.length,
                             itemBuilder: (context, index) {
-                              final p = Product.fromMap(docs[index].data() as Map<String, dynamic>);
+                              final p = finalFive[index];
                               return GestureDetector(
                                 onTap: () {
-                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => ProductDetailsPage(product: p)));
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => ProductDetailsPage(product: p)),
+                                  );
                                 },
                                 child: Container(
-                                  width: 100,
+                                  width: 120,
                                   margin: const EdgeInsets.only(right: 12),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 5,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,8 +752,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black)),
-                                            Text('₹${p.price}', style: TextStyle(fontSize: 12, color: primaryColor, fontWeight: FontWeight.bold)),
+                                            Text(
+                                              p.name, 
+                                              maxLines: 1, 
+                                              overflow: TextOverflow.ellipsis, 
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black)
+                                            ),
+                                            Text(
+                                              '₹${p.price}', 
+                                              style: TextStyle(fontSize: 12, color: primaryColor, fontWeight: FontWeight.bold)
+                                            ),
                                           ],
                                         ),
                                       ),
